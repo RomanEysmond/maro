@@ -1,4 +1,4 @@
-package com.example.example
+package com.example.example.screens
 
 
 import android.annotation.SuppressLint
@@ -26,8 +26,17 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
             startDestination = AllScreens.StartScroll.name,
         ) {
             composable(route = AllScreens.StartScroll.name) {
-                WelcomeScreen()
+                WelcomeScreen(onNextButtonClickedToSkip = {
+                    navController.navigate(
+                        AllScreens.StartLoad.name
+                    )
+                })
             }
+
+            composable(route = AllScreens.StartLoad.name) {
+                ChatsScreen()
+            }
+
         }
 
     }
