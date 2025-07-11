@@ -34,7 +34,7 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
             }
 
             composable(route = AllScreens.StartLoad.name) {
-                ChatsScreen()
+                ChatsPagingScreen()
             }
 
         }

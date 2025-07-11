@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun ChatsScreen() {
+fun ChatsPagingScreen() {
     val scaffoldState = rememberScaffoldState()
     val scope = rememberCoroutineScope()
     var selectedItem by remember { mutableStateOf(0) }
