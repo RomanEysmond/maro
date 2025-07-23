@@ -45,10 +45,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.example.R
+import java.lang.reflect.Modifier
 
 @Composable
-fun ProfileScreen() {
-
+fun SettingsScreen2() {
     var darkThemeEnabled by remember { mutableStateOf(false) }
     var notificationEnabled by remember { mutableStateOf(true) }
     var selectedLanguage by remember { mutableStateOf("Русский") }
@@ -184,11 +184,7 @@ private fun SettingsCategory(
             text = title,
             style = MaterialTheme.typography.caption,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
-            modifier = androidx.compose.ui.Modifier.padding(
-                start = 16.dp,
-                top = 8.dp,
-                bottom = 8.dp
-            )
+            modifier = androidx.compose.ui.Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
         )
 
         Card(
