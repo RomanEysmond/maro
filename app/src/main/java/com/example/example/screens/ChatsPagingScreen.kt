@@ -28,7 +28,9 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun ChatsPagingScreen(onNextButtonClickedToGo: () -> Unit) {
+fun ChatsPagingScreen(onNextButtonClickedToGo1: () -> Unit,
+                      onNextButtonClickedToGo2: () -> Unit,
+                      onNextButtonClickedToGo3: () -> Unit) {
     val scaffoldState = rememberScaffoldState()
     val scope = rememberCoroutineScope()
     var selectedItem by remember { mutableStateOf(0) }
@@ -78,7 +80,11 @@ fun ChatsPagingScreen(onNextButtonClickedToGo: () -> Unit) {
                 onItemClick = { index ->
                     selectedItem = index
                     scope.launch { scaffoldState.drawerState.close() }
-                    onNextButtonClickedToGo()
+                    when (index){
+                        1 -> onNextButtonClickedToGo1()
+                        2 -> onNextButtonClickedToGo2()
+                        3 -> onNextButtonClickedToGo3()
+                    }
                 }
             )
         }

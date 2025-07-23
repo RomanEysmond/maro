@@ -41,11 +41,21 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
             }
 
             composable(route = AllScreens.StartLoad.name) {
-                ChatsPagingScreen(onNextButtonClickedToGo = {
+                ChatsPagingScreen(onNextButtonClickedToGo1 = {
                     navController.navigate(
                         MenuScreens.ProfileScreen.name
                     )
-                })
+                },
+                    onNextButtonClickedToGo2 = {
+                        navController.navigate(
+                            MenuScreens.SettingsScreen.name
+                        )
+                    },
+                    onNextButtonClickedToGo3 = {
+                        navController.navigate(
+                            MenuScreens.HelpScreen.name
+                        )
+                    })
             }
 
 
