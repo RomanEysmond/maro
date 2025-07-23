@@ -8,13 +8,20 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.example.screens.menu_screens.HelpScreen
+import com.example.example.screens.menu_screens.ProfileScreen
+import com.example.example.screens.menu_screens.SettingsScreen
 
 enum class AllScreens {
     StartScroll,
-    StartLoad,
-    Character,
-    MoreCharacter,
-    Location
+    StartLoad
+}
+
+enum class MenuScreens {
+    ChatsPagingScreen,
+    ProfileScreen,
+    SettingsScreen,
+    HelpScreen
 }
 
 @Composable
@@ -34,10 +41,33 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
             }
 
             composable(route = AllScreens.StartLoad.name) {
-                ChatsPagingScreen()
+                ChatsPagingScreen(onNextButtonClickedToGo = {
+                    navController.navigate(
+                        MenuScreens.ProfileScreen.name
+                    )
+                })
+            }
+
+
+            composable(route = MenuScreens.ProfileScreen.name) {
+                ProfileScreen()
+            }
+            composable(route = MenuScreens.SettingsScreen.name) {
+                SettingsScreen()
+            }
+            composable(route = MenuScreens.HelpScreen.name) {
+                HelpScreen()
             }
 
         }
+        /*NavHost(navController = navController, startDestination = MenuScreens.ChatsPagingScreen.name) {
+            composable(route = MenuScreens.ChatsPagingScreen.name) {
+                ChatsPagingScreen()
+            }
+
+
+
+        }*/
 
     }
 }

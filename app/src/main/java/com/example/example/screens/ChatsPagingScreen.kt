@@ -24,32 +24,26 @@ import com.example.example.screens.menu_screens.SettingsScreen
 import com.skydoves.landscapist.glide.GlideImage
 import kotlinx.coroutines.launch
 
-enum class MenuScreens {
-    ProfileScreen,
-    SettingsScreen,
-    HelpScreen,
-    MoreCharacter,
-    Location
-}
+
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun ChatsPagingScreen() {
+fun ChatsPagingScreen(onNextButtonClickedToGo: () -> Unit) {
     val scaffoldState = rememberScaffoldState()
     val scope = rememberCoroutineScope()
     var selectedItem by remember { mutableStateOf(0) }
-    val menuItems = mutableListOf<Triple<Int, String, String>>(
+    val menuItems = mutableListOf<Triple<Int, String, Int>>(
         Triple(
             android.R.drawable.ic_menu_myplaces, stringResource(R.string.img1_text),
-            MenuScreens.ProfileScreen.name
+            1
         ),
         Triple(
             android.R.drawable.ic_menu_manage, stringResource(R.string.img2_text),
-            MenuScreens.SettingsScreen.name
+            2
         ),
         Triple(
             android.R.drawable.ic_menu_info_details, stringResource(R.string.img3_text),
-            MenuScreens.HelpScreen.name
+            3
         )
     )
 
@@ -84,6 +78,7 @@ fun ChatsPagingScreen() {
                 onItemClick = { index ->
                     selectedItem = index
                     scope.launch { scaffoldState.drawerState.close() }
+                    onNextButtonClickedToGo()
                 }
             )
         }
@@ -98,16 +93,12 @@ fun ChatsPagingScreen() {
 @ExperimentalMaterialApi
 @Composable
 fun DrawerContent(
-    items: List<Triple<Int, String, String>>,
+    items: List<Triple<Int, String, Int>>,
     selectedItem: Int,
     onItemClick: (Int) -> Unit,
-    navController: NavHostController = rememberNavController()
-) {
-    val linksToNavHost = mutableListOf<Pair<String, Unit>>(
-        Pair(MenuScreens.ProfileScreen.name, ProfileScreen()),
-        Pair(MenuScreens.SettingsScreen.name, SettingsScreen()),
-        Pair(MenuScreens.HelpScreen.name, HelpScreen())
-    )
+
+    ) {
+
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Заголовок меню
@@ -121,25 +112,16 @@ fun DrawerContent(
 
         // Пункты меню
         items.forEachIndexed { index, item ->
-            NavHost(
-                navController = navController,
-                startDestination = item.third
-            ) {
-                composable(route = item.third) {
-                    ProfileScreen()
-                }
-
-            }
-
+            Row {
                 ListItem(
                     text = { Text(item.second) },
                     icon = { GlideImage(item.first, modifier = Modifier.size(35.dp)) },
                     modifier = Modifier.clickable {
-
+                        onItemClick(item.third)
                     }
                 )
 
-
+            }
 
 
         }
