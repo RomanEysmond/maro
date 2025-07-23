@@ -1,7 +1,9 @@
 package com.example.example.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -77,7 +79,7 @@ fun ChatsPagingScreen() {
         },
         drawerContent = {
             DrawerContent(
-                items = menuItems2,
+                items = menuItems,
                 selectedItem = selectedItem,
                 onItemClick = { index ->
                     selectedItem = index
@@ -96,11 +98,17 @@ fun ChatsPagingScreen() {
 @ExperimentalMaterialApi
 @Composable
 fun DrawerContent(
-    items: List<Pair<Int, String>>,
+    items: List<Triple<Int, String, String>>,
     selectedItem: Int,
     onItemClick: (Int) -> Unit,
     navController: NavHostController = rememberNavController()
 ) {
+    val linksToNavHost = mutableListOf<Pair<String, Unit>>(
+        Pair(MenuScreens.ProfileScreen.name, ProfileScreen()),
+        Pair(MenuScreens.SettingsScreen.name, SettingsScreen()),
+        Pair(MenuScreens.HelpScreen.name, HelpScreen())
+    )
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Заголовок меню
         Text(
@@ -113,24 +121,27 @@ fun DrawerContent(
 
         // Пункты меню
         items.forEachIndexed { index, item ->
-            ListItem(
-                text = { Text(item.second) },
-                icon = { GlideImage(item.first, modifier = Modifier.size(35.dp)) },
-            )
             NavHost(
                 navController = navController,
-                startDestination = MenuScreens.SettingsScreen.name
+                startDestination = item.third
             ) {
-                composable(route = MenuScreens.ProfileScreen.name) {
+                composable(route = item.third) {
                     ProfileScreen()
                 }
-                composable(route = MenuScreens.SettingsScreen.name) {
-                    SettingsScreen()
-                }
-                composable(route = MenuScreens.HelpScreen.name) {
-                    HelpScreen()
-                }
+
             }
+
+                ListItem(
+                    text = { Text(item.second) },
+                    icon = { GlideImage(item.first, modifier = Modifier.size(35.dp)) },
+                    modifier = Modifier.clickable {
+
+                    }
+                )
+
+
+
+
         }
     }
 }
