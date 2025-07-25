@@ -31,7 +31,7 @@ fun SettingsScreen() {
                 title = { Text("Настройки") },
                 actions = {
                     IconButton(onClick = { /* Действие поиска */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Поиск")
+                        Icon(Icons.Default.Search, contentDescription = "Поиск 2")
                     }
                 }
             )
