@@ -10,11 +10,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.example.screens.menu_screens.HelpScreen
 import com.example.example.screens.menu_screens.ProfileScreen
+import com.example.example.screens.menu_screens.RegistrationScreen
 import com.example.example.screens.menu_screens.SettingsScreen
 
 enum class AllScreens {
     StartScroll,
-    StartLoad
+    StartLoad,
+    StartRegistration
 }
 
 enum class MenuScreens {
@@ -34,6 +36,14 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
         ) {
             composable(route = AllScreens.StartScroll.name) {
                 WelcomeScreen(onNextButtonClickedToSkip = {
+                    navController.navigate(
+                        AllScreens.StartRegistration.name
+                    )
+                })
+            }
+
+            composable(route= AllScreens.StartRegistration.name) {
+                RegistrationScreen(navController, onNextButtonClickedToSkip = {
                     navController.navigate(
                         AllScreens.StartLoad.name
                     )
