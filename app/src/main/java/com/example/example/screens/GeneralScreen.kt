@@ -66,7 +66,7 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
                 SettingsScreen()
             }
             composable(route = MenuScreens.HelpScreen.name) {
-                HelpScreen()
+                HelpScreen(navController)
             }
 
         }
