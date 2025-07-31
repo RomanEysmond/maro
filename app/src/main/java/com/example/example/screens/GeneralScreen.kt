@@ -80,14 +80,7 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
             }
 
         }
-        /*NavHost(navController = navController, startDestination = MenuScreens.ChatsPagingScreen.name) {
-            composable(route = MenuScreens.ChatsPagingScreen.name) {
-                ChatsPagingScreen()
-            }
 
-
-
-        }*/
 
     }
 }
