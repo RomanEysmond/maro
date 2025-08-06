@@ -9,6 +9,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.example.screens.menu_screens.HelpScreen
+import com.example.example.screens.menu_screens.HelpScreenChangedPhone
+import com.example.example.screens.menu_screens.HelpScreenCreateGroupChat
+import com.example.example.screens.menu_screens.HelpScreenHideLastSession
 import com.example.example.screens.menu_screens.ProfileScreen
 import com.example.example.screens.menu_screens.RegistrationScreen
 import com.example.example.screens.menu_screens.SettingsScreen
@@ -24,6 +27,12 @@ enum class MenuScreens {
     ProfileScreen,
     SettingsScreen,
     HelpScreen
+}
+
+enum class HelpScreens {
+    ChangedPhone,
+    CreateGroupChate,
+    HideLastSession
 }
 
 @Composable
@@ -42,7 +51,7 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
                 })
             }
 
-            composable(route= AllScreens.StartRegistration.name) {
+            composable(route = AllScreens.StartRegistration.name) {
                 RegistrationScreen(navController, onNextButtonClickedToSkip = {
                     navController.navigate(
                         AllScreens.StartLoad.name
@@ -51,24 +60,13 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
             }
 
             composable(route = AllScreens.StartLoad.name) {
-                ChatsPagingScreen(onNextButtonClickedToGo1 = {
-                    navController.navigate(
-                        MenuScreens.ProfileScreen.name
-                    )
-                },
-                    onNextButtonClickedToGo2 = {
-                        navController.navigate(
-                            MenuScreens.SettingsScreen.name
-                        )
-                    },
-                    onNextButtonClickedToGo3 = {
-                        navController.navigate(
-                            MenuScreens.HelpScreen.name
-                        )
-                    })
+                ChatsPagingScreen(
+                    onNextButtonClickedToGo1 = {navController.navigate(MenuScreens.ProfileScreen.name)},
+                    onNextButtonClickedToGo2 = {navController.navigate(MenuScreens.SettingsScreen.name)},
+                    onNextButtonClickedToGo3 = {navController.navigate(MenuScreens.HelpScreen.name)})
             }
 
-
+            //GeneralScreens in hide menu
             composable(route = MenuScreens.ProfileScreen.name) {
                 ProfileScreen()
             }
@@ -76,7 +74,21 @@ fun GeneralScreen(navController: NavHostController = rememberNavController()) {
                 SettingsScreen()
             }
             composable(route = MenuScreens.HelpScreen.name) {
-                HelpScreen(navController)
+                HelpScreen(navController,
+                    onNextButtonClickedHelpScreens1 = { navController.navigate((HelpScreens.ChangedPhone.name)) },
+                    onNextButtonClickedHelpScreens2 = { navController.navigate((HelpScreens.HideLastSession.name)) },
+                    onNextButtonClickedHelpScreens3 = { navController.navigate((HelpScreens.CreateGroupChate.name)) })
+            }
+
+            //HelpScreens
+            composable(route = HelpScreens.ChangedPhone.name) {
+                HelpScreenChangedPhone()
+            }
+            composable(route = HelpScreens.HideLastSession.name) {
+                HelpScreenHideLastSession()
+            }
+            composable(route = HelpScreens.CreateGroupChate.name) {
+                HelpScreenCreateGroupChat()
             }
 
         }

@@ -18,9 +18,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HelpScreen(navController: NavController) {
+fun HelpScreen(
+    navController: NavController,
+    onNextButtonClickedHelpScreens1: () -> Unit,
+    onNextButtonClickedHelpScreens2: () -> Unit,
+    onNextButtonClickedHelpScreens3: () -> Unit
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -83,7 +89,7 @@ fun HelpScreen(navController: NavController) {
                         icon = Icons.Default.Chat,
                         title = "Чат поддержки",
                         description = "Напишите нам, мы ответим в течение 24 часов",
-                        onClick = { navController.navigate("support_chat") }
+                        onClick = { /*navController.navigate("support_chat")*/ }
                     )
 
                     Divider(
@@ -96,7 +102,7 @@ fun HelpScreen(navController: NavController) {
                         icon = Icons.Default.Info,
                         title = "Возможности приложения",
                         description = "Узнайте обо всех функциях нашего мессенджера",
-                        onClick = { navController.navigate("features") }
+                        onClick = {/* navController.navigate("features")*/ }
                     )
                 }
             }
@@ -133,11 +139,18 @@ fun HelpScreen(navController: NavController) {
                         }
                         FAQItem(
                             question = question,
-                            onClick = { navController.navigate("faq/$index") }
+                            onClick = {
+                                when (index) {
+                                    0 -> onNextButtonClickedHelpScreens1();
+                                    1 -> onNextButtonClickedHelpScreens2();
+                                    2 -> onNextButtonClickedHelpScreens3()
+                                }
+                            }
                         )
                     }
                 }
             }
+
 
             // Контакты
             item {
