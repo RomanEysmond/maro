@@ -5,5 +5,5 @@ import androidx.compose.runtime.Composable
 
 @Composable
 fun HelpScreenChangedPhone() {
-    Text("HelpScreenChangedPhone")
+    Text("HelpScreenChangedPhonesewdawd")
 }
