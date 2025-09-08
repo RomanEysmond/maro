@@ -39,6 +39,7 @@ enum class HelpScreens {
 @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 fun GeneralScreen(navController: NavHostController = rememberNavController()) {
     Scaffold { innerPadding ->
+
         NavHost(
             navController = navController,
             startDestination = AllScreens.StartScroll.name,

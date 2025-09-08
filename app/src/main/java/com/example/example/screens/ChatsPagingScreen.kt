@@ -117,7 +117,7 @@ fun DrawerContent(
         Divider()
 
         // Пункты меню
-        items.forEachIndexed { index, item ->
+        items.forEachIndexed { _, item ->
             Row {
                 ListItem(
                     text = { Text(item.second) },
