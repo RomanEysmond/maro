@@ -13,3 +13,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase config (public repo)
+google-services.json
+
+# Kotlin
+.kotlin/
+*.hprof
