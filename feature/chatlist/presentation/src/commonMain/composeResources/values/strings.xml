@@ -1,0 +1,8 @@
+<resources>
+    <string name="chat_list_title">Maro</string>
+    <string name="chat_list_menu">Меню</string>
+    <string name="chat_list_placeholder">Место в разработке</string>
+    <string name="menu_profile">Профиль</string>
+    <string name="menu_settings">Настройки</string>
+    <string name="menu_help">Справка</string>
+</resources>

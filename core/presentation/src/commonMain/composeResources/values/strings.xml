@@ -1,0 +1,7 @@
+<resources>
+    <string name="error_unknown">Что-то пошло не так. Попробуйте ещё раз</string>
+    <string name="error_no_internet">Нет подключения к интернету</string>
+    <string name="error_server">Ошибка сервера. Попробуйте позже</string>
+    <string name="error_unauthorized">Нужно войти в аккаунт</string>
+    <string name="error_disk_full">Недостаточно места на устройстве</string>
+</resources>

@@ -1,0 +1,26 @@
+<resources>
+    <string name="profile_loading_error_retry">Повторить</string>
+    <string name="profile_username_empty">Имя пользователя не задано</string>
+    <string name="profile_bio_empty">О себе: не указано</string>
+    <string name="profile_birth_date">Дата рождения: %1$s</string>
+
+    <string name="edit_title_setup">Расскажите о себе</string>
+    <string name="edit_title_edit">Редактирование профиля</string>
+    <string name="edit_subtitle_setup">Это необязательно: вы можете пропустить и заполнить позже в профиле, в разделе «Учётная запись»</string>
+    <string name="edit_skip">Пропустить</string>
+    <string name="edit_save">Сохранить</string>
+    <string name="edit_back">Назад</string>
+    <string name="edit_first_name">Имя</string>
+    <string name="edit_last_name">Фамилия</string>
+    <string name="edit_username">Имя пользователя</string>
+    <string name="edit_username_hint">От 5 до 32 символов: латиница, цифры и «_», начинается с буквы</string>
+    <string name="edit_bio">О себе</string>
+    <string name="edit_bio_counter">%1$d/%2$d</string>
+    <string name="edit_birth_date">Дата рождения</string>
+    <string name="edit_birth_date_clear">Убрать дату рождения</string>
+    <string name="edit_date_ok">Готово</string>
+    <string name="edit_date_cancel">Отмена</string>
+
+    <string name="profile_error_username_taken">Это имя пользователя уже занято</string>
+    <string name="profile_error_no_internet">Нет подключения к интернету</string>
+</resources>
