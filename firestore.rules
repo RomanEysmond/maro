@@ -1,0 +1,66 @@
+rules_version = '2';
+
+// Publish by hand: Firebase Console -> Firestore Database -> Rules (Claude has no access to the console).
+// The limits below must match ProfileRules in :core:domain.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function usernamePath(name) {
+      return /databases/$(database)/documents/usernames/$(name);
+    }
+
+    // Optional fields may be absent, but when present they must be well-formed.
+    function isValidProfile(profile) {
+      return profile.keys().hasOnly(['firstName', 'lastName', 'phone', 'createdAt', 'username', 'bio', 'birthDate'])
+        && profile.keys().hasAll(['firstName', 'lastName', 'phone', 'createdAt'])
+        && profile.firstName is string && profile.firstName.size() > 0 && profile.firstName.size() <= 64
+        && profile.lastName is string && profile.lastName.size() <= 64
+        && profile.phone == request.auth.token.phone_number
+        && profile.createdAt is timestamp
+        && (!('username' in profile) || (profile.username is string && profile.username.matches('^[a-z][a-z0-9_]{4,31}$')))
+        && (!('bio' in profile) || (profile.bio is string && profile.bio.size() <= 140))
+        && (!('birthDate' in profile) || (profile.birthDate is string && profile.birthDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+    }
+
+    // A username written to a profile must have been claimed in the same commit (usernames/{name} -> this uid).
+    function isUsernameClaimed(profile) {
+      return !('username' in profile)
+        || (existsAfter(usernamePath(profile.username))
+            && getAfter(usernamePath(profile.username)).data.uid == request.auth.uid);
+    }
+
+    match /users/{uid} {
+      // Chats (stage 3) will need to read other users' names; open that up together with the chat rules.
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && isValidProfile(request.resource.data)
+        && isUsernameClaimed(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner(uid)
+        && isValidProfile(request.resource.data)
+        && isUsernameClaimed(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    // Makes usernames unique: the document id is the username, the field points to the owner.
+    match /usernames/{name} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && name.matches('^[a-z][a-z0-9_]{4,31}$')
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+    // Everything else is closed until the feature that needs it ships its own rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

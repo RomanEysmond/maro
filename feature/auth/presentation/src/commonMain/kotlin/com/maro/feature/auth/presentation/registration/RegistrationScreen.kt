@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,7 +44,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun RegistrationRoot(
     onNavigateBack: () -> Unit,
-    onNavigateNext: () -> Unit,
+    onNavigateToVerifyCode: (RegistrationEvent.NavigateToVerifyCode) -> Unit,
+    onAuthenticated: (isNewUser: Boolean) -> Unit,
     viewModel: RegistrationViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -51,7 +53,8 @@ fun RegistrationRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             RegistrationEvent.NavigateBack -> onNavigateBack()
-            RegistrationEvent.NavigateNext -> onNavigateNext()
+            is RegistrationEvent.NavigateToVerifyCode -> onNavigateToVerifyCode(event)
+            is RegistrationEvent.Authenticated -> onAuthenticated(event.isNewUser)
         }
     }
 
@@ -156,10 +159,17 @@ fun RegistrationScreen(
                     leadingIcon = {
                         Icon(Icons.Default.Phone, contentDescription = "Телефон")
                     },
-                    prefix = {
-                        Text(text = RegistrationState.COUNTRY_PREFIX, color = MaterialTheme.colorScheme.onSurface)
-                    },
+                    // The "+7" prefix is always visible; the state keeps only the ten national digits.
+                    visualTransformation = PhonePrefixTransformation,
                 )
+
+                state.error?.let { error ->
+                    Text(
+                        text = error.asString(),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
 
             // Кнопка продолжения
@@ -168,9 +178,13 @@ fun RegistrationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 32.dp),
-                enabled = state.isContinueEnabled,
+                enabled = state.isContinueEnabled && !state.isLoading,
             ) {
-                Text("Продолжить", modifier = Modifier.padding(vertical = 8.dp))
+                if (state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Продолжить", modifier = Modifier.padding(vertical = 8.dp))
+                }
             }
         }
     }

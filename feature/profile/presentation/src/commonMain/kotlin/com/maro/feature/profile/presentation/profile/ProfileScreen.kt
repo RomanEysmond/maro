@@ -1,6 +1,5 @@
 package com.maro.feature.profile.presentation.profile
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,18 +37,48 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import com.maro.core.design_system.generated.resources.Res
-import com.maro.core.design_system.generated.resources.logo
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.DrawableResource
+import com.maro.core.designsystem.component.InitialsAvatar
+import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.feature.profile.presentation.generated.resources.Res
+import com.maro.feature.profile.presentation.generated.resources.profile_bio_empty
+import com.maro.feature.profile.presentation.generated.resources.profile_birth_date
+import com.maro.feature.profile.presentation.generated.resources.profile_loading_error_retry
+import com.maro.feature.profile.presentation.generated.resources.profile_username_empty
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun ProfileScreen() {
+fun ProfileRoot(
+    onEditClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    viewModel: ProfileViewModel = koinViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    ObserveAsEvents(viewModel.events) { event ->
+        when (event) {
+            ProfileEvent.NavigateToEdit -> onEditClick()
+        }
+    }
+
+    ProfileScreen(
+        state = state,
+        onAction = viewModel::onAction,
+        onLogoutClick = onLogoutClick,
+    )
+}
+
+@Composable
+fun ProfileScreen(
+    state: ProfileState,
+    onAction: (ProfileAction) -> Unit,
+    onLogoutClick: () -> Unit,
+) {
 
     var darkThemeEnabled by remember { mutableStateOf(false) }
     var notificationEnabled by remember { mutableStateOf(true) }
@@ -62,21 +90,18 @@ fun ProfileScreen() {
     ) {
         Column(modifier = androidx.compose.ui.Modifier.verticalScroll(rememberScrollState())) {
             // Заголовок профиля
-            ProfileHeader(
-                name = "Иван Иванов",
-                phone = "+7 (123) 456-78-90",
-                avatarRes = Res.drawable.logo
-            )
+            ProfileHeader(state = state, onAction = onAction)
 
             Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
 
             // Основные настройки
             SettingsCategory(title = "Основные") {
                 SettingsItem(
-
                     icon = Icons.Default.Person,
                     title = "Учетная запись",
-                    subtitle = "Приватность, номер телефона"
+                    subtitle = "Имя, @имя, о себе, дата рождения",
+                    showChevron = true,
+                    onClick = { onAction(ProfileAction.OnEditClick) },
                 )
                 SettingsItem(
                     icon = Icons.AutoMirrored.Filled.Chat,
@@ -129,7 +154,7 @@ fun ProfileScreen() {
 
             // Выход
             TextButton(
-                onClick = { /* Выход из аккаунта */ },
+                onClick = onLogoutClick,
                 modifier = androidx.compose.ui.Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -145,36 +170,69 @@ fun ProfileScreen() {
 }
 
 @Composable
-private fun ProfileHeader(name: String, phone: String, avatarRes: DrawableResource) {
-    Row(
+private fun ProfileHeader(
+    state: ProfileState,
+    onAction: (ProfileAction) -> Unit,
+) {
+    val profile = state.profile
+
+    Column(
         modifier = androidx.compose.ui.Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(avatarRes),
-            contentDescription = "Аватар",
-            modifier = androidx.compose.ui.Modifier
-                .size(64.dp)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            InitialsAvatar(initials = profile?.initials.orEmpty(), size = 72.dp)
 
-        Spacer(modifier = androidx.compose.ui.Modifier.width(16.dp))
+            Spacer(modifier = androidx.compose.ui.Modifier.width(16.dp))
 
-        Column {
+            Column(modifier = androidx.compose.ui.Modifier.weight(1f)) {
+                if (profile != null) {
+                    Text(text = profile.fullName, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        text = formatPhone(profile.phone),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                    Text(
+                        text = profile.username?.let { "@$it" } ?: stringResource(Res.string.profile_username_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else if (state.isLoading) {
+                    CircularProgressIndicator(modifier = androidx.compose.ui.Modifier.size(24.dp), strokeWidth = 2.dp)
+                } else {
+                    state.error?.let { error ->
+                        Text(text = error.asString(), color = MaterialTheme.colorScheme.error)
+                    }
+                    TextButton(onClick = { onAction(ProfileAction.OnRetryClick) }) {
+                        Text(stringResource(Res.string.profile_loading_error_retry))
+                    }
+                }
+            }
+        }
+
+        if (profile != null) {
+            Spacer(modifier = androidx.compose.ui.Modifier.height(12.dp))
             Text(
-                text = name,
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = phone,
+                text = profile.bio.ifBlank { stringResource(Res.string.profile_bio_empty) },
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
+            profile.birthDate?.let { birthDate ->
+                Text(
+                    text = stringResource(Res.string.profile_birth_date, birthDate.toDisplayString()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
         }
     }
+}
+
+/** "+79001234567" -> "+7 900 123-45-67"; anything unexpected is shown as is. */
+private fun formatPhone(phone: String): String {
+    if (phone.length != 12 || !phone.startsWith("+7")) return phone
+    return "+7 ${phone.substring(2, 5)} ${phone.substring(5, 8)}-${phone.substring(8, 10)}-${phone.substring(10)}"
 }
 
 @Composable

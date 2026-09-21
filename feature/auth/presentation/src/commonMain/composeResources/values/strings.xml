@@ -1,0 +1,15 @@
+<resources>
+    <string name="auth_error_invalid_phone">Неверный номер телефона</string>
+    <string name="auth_error_invalid_code">Неверный код. Проверьте и попробуйте ещё раз</string>
+    <string name="auth_error_code_expired">Код устарел. Запросите новый</string>
+    <string name="auth_error_too_many_requests">Слишком много попыток. Попробуйте позже</string>
+    <string name="auth_error_network">Нет подключения к интернету</string>
+
+    <string name="verify_title">Код подтверждения</string>
+    <string name="verify_subtitle">Мы отправили SMS с кодом на %1$s</string>
+    <string name="verify_code_label">Код из SMS</string>
+    <string name="verify_confirm">Подтвердить</string>
+    <string name="verify_resend">Отправить код повторно</string>
+    <string name="verify_resend_timer">Отправить повторно через %1$d с</string>
+    <string name="verify_back">Назад</string>
+</resources>

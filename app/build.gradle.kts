@@ -31,11 +31,15 @@ android {
 dependencies {
     // Shared
     implementation(project(":core:design-system"))
+    implementation(project(":core:data"))
 
     // Features: :app is the only place that knows all of them and wires them together
+    implementation(project(":feature:auth:domain"))
+    implementation(project(":feature:auth:data"))
     implementation(project(":feature:auth:presentation"))
     implementation(project(":feature:chatlist:presentation"))
     implementation(project(":feature:chat:presentation"))
+    implementation(project(":feature:profile:data"))
     implementation(project(":feature:profile:presentation"))
 
     implementation(libs.androidx.core.ktx)
@@ -43,15 +47,15 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.koin.core)
     implementation(libs.koin.android)
+    implementation(libs.koin.compose.viewmodel)
+    implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.android)
 
     // XML theme parent for Theme.Maro
     implementation(libs.google.material)
 
-    // Firebase (wired up in stage 2)
+    // Firebase Auth and Firestore live in :feature:auth:data; messaging comes with the push stage
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.firestore)
     implementation(libs.firebase.messaging)
 
     testImplementation(libs.junit)

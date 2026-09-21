@@ -26,7 +26,9 @@ import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onLogoutClick: () -> Unit,
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -125,7 +127,7 @@ fun SettingsScreen() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .clickable { /* Выход из аккаунта */ },
+                        .clickable(onClick = onLogoutClick),
                     fontSize = 16.sp
                 )
             }

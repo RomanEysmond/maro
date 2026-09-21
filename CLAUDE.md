@@ -47,8 +47,8 @@
 ```
 :app                      Application + Koin, MainActivity, NavigationRoot (единственный Android-only модуль)
 build-logic               convention plugins: maro.android.application, maro.kmp.library, maro.kmp.compose, maro.kmp.feature
-:core:domain              Result, Error, DataError (без Compose и Android)
-:core:data                заготовка (Ktor-клиент, safeCall, общие data-утилиты — по мере надобности)
+:core:domain              Result, Error, DataError, профиль пользователя (без Compose и Android)
+:core:data                Firebase-объекты (androidMain), Task.await(); позже Ktor-клиент, safeCall
 :core:presentation        UiText, ObserveAsEvents, DataError.toUiText() (+ строки ошибок)
 :core:design-system       MaroTheme (светлая/тёмная), общие ресурсы (logo.png)
 :feature:auth:{domain,data,presentation}
@@ -70,11 +70,28 @@ build-logic               convention plugins: maro.android.application, maro.kmp
   Chat (заглушка); Profile / Settings / Help (+3 пустых подэкрана) — статичный UI с демо-данными «Иван Иванов».
 - Навигация: `AuthGraphRoute` (Welcome → Registration) → `ChatListGraphRoute`; `ProfileRoute`, `SettingsRoute`, `HelpRoute`
   (+ `HelpChangedPhoneRoute`, `HelpHideLastSessionRoute`, `HelpCreateGroupChatRoute`), `ChatRoute(chatId)`.
-  Стартовый маршрут выбирается по `isLoggedIn` — **пока константа `false`** (заглушка до этапа 2). После регистрации экран
+  Стартовый маршрут выбирается по `isLoggedIn` (с этапа 2 — реальная сессия Firebase). После регистрации экран
   входа убирается из back stack.
 - Koin: зарегистрирован только `authPresentationModule` (`RegistrationViewModel`).
 - Тесты: 11 (`ResultTest` — 3, `RegistrationViewModelTest` — 8), все зелёные.
-- В `:app` подключены Firebase `auth`, `firestore`, `messaging` (пока не используются); плагин `google-services` применён.
+- **Этап 2** (ветка `stage-2-phone-auth`, не закоммичен; сборка и 50 юнит-тестов зелёные; на эмуляторе проверены: SMS-вход (тестовый номер Firebase), экран «О себе», профиль, редактирование и смена @username, сохранение сессии после перезапуска, выход, повторный вход существующего пользователя —
+  для SMS на +7 в Firebase включён регион «Россия»): `PhoneAuthenticator` / `SessionRepository` в `feature:auth:domain`;
+  Firebase-реализации в `feature:auth:data/androidMain` (`ActivityProvider` даёт Activity для `verifyPhoneNumber`; Firestore с
+  memory-кэшем); экран `VerifyCode` (6 цифр, автоотправка, таймер повтора 60 с);
+  имя/телефон едут в `VerifyCodeRoute`. Повторный вход: существующий `users/{uid}` побеждает, форма нужна только новым.
+  `isLoggedIn` — `StateFlow` из Firebase Auth (старт без сплэша), выход через колбэк `onLogout` в `profileGraph` → `MainViewModel`
+  в `:app`; при `false` навигация сбрасывает back stack на `AuthGraphRoute`. `firestore.rules` в корне — **опубликовать вручную**
+  в консоли. Префикс «+7» показывается постоянно (`PhonePrefixTransformation`).
+- **Этап 2, профиль:** `UserProfile` / `UserProfileRepository` (+ `BirthDate`, `ProfileUpdate`, `ProfileRules`, `ProfileError`) живут в
+  `:core:domain` (профиль нужен и auth, и profile, а фичи друг от друга не зависят); реализация на Firestore — в
+  `feature:profile:data` (`profileDataModule`), общие `FirebaseAuth`/`FirebaseFirestore` и `Task.await()` — в `:core:data`
+  (`firebaseCoreModule`). Репозиторий — singleton с кэшем `profile: StateFlow`, экраны на него подписаны. `ensureProfile` возвращает
+  `isNew`: новый пользователь после кода попадает на `ProfileSetupRoute` («Расскажите о себе»: bio, @username, дата рождения,
+  «Пропустить»), существующий — сразу в чаты. Редактирование (`EditProfileRoute`, те же поля + имя/фамилия) открывается пунктом «Учётная запись» в
+  `ProfileScreen` (отдельной кнопки нет), который показывает реальные данные. Аватар — заглушка с инициалами (`InitialsAvatar`), фото ждёт этапа 8 (Storage
+  на Spark недоступен). Уникальность @username: документ `usernames/{name}` → uid, claim и смена в одной транзакции; правила это
+  проверяют (`isUsernameClaimed`). Правила `firestore.rules` опубликованы владельцем в консоли (при изменении — публиковать заново вручную).
+- Firebase `auth`/`firestore` подключены в `feature:auth:data`, `messaging` — в `:app` (пока не используется); плагин `google-services` в `:app`.
 
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
@@ -111,6 +128,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 - Для входа нужны SHA-1/SHA-256 debug-ключа в Firebase (добавлены), тестовые номера Firebase для разработки.
 
 ## Известные хвосты
+- Этап 2: для SMS на +7 в консоли Firebase (Authentication → Settings → SMS region policy) должна быть разрешена Россия, иначе ошибка 17006 «SMS unable to be sent until this region enabled». Если после верного SMS-кода не удалось сохранить профиль и приложение убито, при следующем запуске пользователь уже «залогинен» без `users/{uid}` (профиль нигде пока не читается). Автоподстановка SMS, пришедшего после `onCodeSent`, игнорируется — код вводится вручную. Не проверено: занятое @username (нужен второй пользователь) и отказы правил для чужих документов.
 - Firestore Rules пока `request.auth != null` для всего — заменить на этапе 2–3.
 - `com.android.library` + Kotlin Multiplatform помечен устаревшим (несовместим с AGP 9) — позже перейти на
   `com.android.kotlin.multiplatform.library`.

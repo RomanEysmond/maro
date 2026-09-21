@@ -4,7 +4,13 @@ import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isNotNull
 import assertk.assertions.isTrue
+import com.maro.core.domain.util.Result
+import com.maro.feature.auth.domain.AuthError
+import com.maro.feature.auth.domain.SendCodeOutcome
+import com.maro.feature.auth.presentation.fakes.FakePhoneAuthenticator
+import com.maro.feature.auth.presentation.fakes.FakeUserProfileRepository
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -18,12 +24,16 @@ import kotlinx.coroutines.test.setMain
 @OptIn(ExperimentalCoroutinesApi::class)
 class RegistrationViewModelTest {
 
+    private lateinit var authenticator: FakePhoneAuthenticator
+    private lateinit var profiles: FakeUserProfileRepository
     private lateinit var viewModel: RegistrationViewModel
 
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-        viewModel = RegistrationViewModel()
+        authenticator = FakePhoneAuthenticator()
+        profiles = FakeUserProfileRepository()
+        viewModel = RegistrationViewModel(authenticator, profiles)
     }
 
     @AfterTest
@@ -84,17 +94,52 @@ class RegistrationViewModelTest {
     }
 
     @Test
-    fun `continue emits NavigateNext only when the form is valid`() = runTest {
+    fun `continue sends the code and opens the code screen only when the form is valid`() = runTest {
         viewModel.events.test {
             viewModel.onAction(RegistrationAction.OnContinueClick)
             expectNoEvents()
+            assertThat(authenticator.sentTo).isEqualTo(emptyList())
 
-            viewModel.onAction(RegistrationAction.OnFirstNameChange("Иван"))
+            viewModel.onAction(RegistrationAction.OnFirstNameChange("  Иван "))
+            viewModel.onAction(RegistrationAction.OnLastNameChange("Иванов"))
             viewModel.onAction(RegistrationAction.OnPhoneNumberChange("9001234567"))
             viewModel.onAction(RegistrationAction.OnContinueClick)
 
-            assertThat(awaitItem()).isEqualTo(RegistrationEvent.NavigateNext)
+            assertThat(awaitItem()).isEqualTo(
+                RegistrationEvent.NavigateToVerifyCode("Иван", "Иванов", "+79001234567"),
+            )
         }
+        assertThat(authenticator.sentTo).isEqualTo(listOf("+79001234567"))
+        assertThat(viewModel.state.value.isLoading).isFalse()
+    }
+
+    @Test
+    fun `send failure shows an error and stays on the screen`() = runTest {
+        authenticator.sendResult = Result.Error(AuthError.TOO_MANY_REQUESTS)
+        viewModel.onAction(RegistrationAction.OnFirstNameChange("Иван"))
+        viewModel.onAction(RegistrationAction.OnPhoneNumberChange("9001234567"))
+
+        viewModel.events.test {
+            viewModel.onAction(RegistrationAction.OnContinueClick)
+
+            expectNoEvents()
+        }
+        assertThat(viewModel.state.value.error).isNotNull()
+        assertThat(viewModel.state.value.isLoading).isFalse()
+    }
+
+    @Test
+    fun `instant verification saves the profile and emits Authenticated`() = runTest {
+        authenticator.sendResult = Result.Success(SendCodeOutcome.AutoVerified)
+        viewModel.onAction(RegistrationAction.OnFirstNameChange("Иван"))
+        viewModel.onAction(RegistrationAction.OnPhoneNumberChange("9001234567"))
+
+        viewModel.events.test {
+            viewModel.onAction(RegistrationAction.OnContinueClick)
+
+            assertThat(awaitItem()).isEqualTo(RegistrationEvent.Authenticated(isNewUser = true))
+        }
+        assertThat(profiles.calls).isEqualTo(1)
     }
 
     @Test

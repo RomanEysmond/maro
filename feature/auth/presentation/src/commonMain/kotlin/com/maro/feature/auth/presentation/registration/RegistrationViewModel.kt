@@ -2,6 +2,12 @@ package com.maro.feature.auth.presentation.registration
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.maro.core.domain.util.Result
+import com.maro.core.presentation.util.toUiText
+import com.maro.feature.auth.domain.PhoneAuthenticator
+import com.maro.feature.auth.domain.SendCodeOutcome
+import com.maro.core.domain.profile.UserProfileRepository
+import com.maro.feature.auth.presentation.util.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,7 +15,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class RegistrationViewModel : ViewModel() {
+class RegistrationViewModel(
+    private val phoneAuthenticator: PhoneAuthenticator,
+    private val userProfileRepository: UserProfileRepository,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(RegistrationState())
     val state = _state.asStateFlow()
@@ -19,17 +28,47 @@ class RegistrationViewModel : ViewModel() {
 
     fun onAction(action: RegistrationAction) {
         when (action) {
-            is RegistrationAction.OnFirstNameChange -> _state.update { it.copy(firstName = action.value) }
-            is RegistrationAction.OnLastNameChange -> _state.update { it.copy(lastName = action.value) }
+            is RegistrationAction.OnFirstNameChange -> _state.update { it.copy(firstName = action.value, error = null) }
+            is RegistrationAction.OnLastNameChange -> _state.update { it.copy(lastName = action.value, error = null) }
             is RegistrationAction.OnPhoneNumberChange -> {
-                _state.update { it.copy(phoneNumber = normalizePhoneInput(action.value)) }
+                _state.update { it.copy(phoneNumber = normalizePhoneInput(action.value), error = null) }
             }
             RegistrationAction.OnBackClick -> send(RegistrationEvent.NavigateBack)
-            RegistrationAction.OnContinueClick -> {
-                if (_state.value.isContinueEnabled) {
-                    // Stage 2 replaces this with sending the SMS code and opening the code-entry screen.
-                    send(RegistrationEvent.NavigateNext)
+            RegistrationAction.OnContinueClick -> requestCode()
+        }
+    }
+
+    private fun requestCode() {
+        val current = _state.value
+        if (!current.isContinueEnabled || current.isLoading) return
+
+        val firstName = current.firstName.trim()
+        val lastName = current.lastName.trim()
+        val phone = current.fullPhoneNumber
+
+        _state.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            when (val result = phoneAuthenticator.sendCode(phone)) {
+                is Result.Error -> {
+                    _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
                 }
+                is Result.Success -> when (result.data) {
+                    SendCodeOutcome.CodeSent -> {
+                        _state.update { it.copy(isLoading = false) }
+                        _events.send(RegistrationEvent.NavigateToVerifyCode(firstName, lastName, phone))
+                    }
+                    SendCodeOutcome.AutoVerified -> completeProfile(firstName, lastName, phone)
+                }
+            }
+        }
+    }
+
+    private suspend fun completeProfile(firstName: String, lastName: String, phone: String) {
+        when (val result = userProfileRepository.ensureProfile(firstName, lastName, phone)) {
+            is Result.Error -> _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
+            is Result.Success -> {
+                _state.update { it.copy(isLoading = false) }
+                _events.send(RegistrationEvent.Authenticated(result.data.isNew))
             }
         }
     }
