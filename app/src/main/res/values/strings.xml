@@ -1,6 +1,3 @@
 <resources>
     <string name="app_name">Maro</string>
-    <string name="img1_text">Профиль</string>
-    <string name="img2_text">Настройки</string>
-    <string name="img3_text">Справка</string>
 </resources>
