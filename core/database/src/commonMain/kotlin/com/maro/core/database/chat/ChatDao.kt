@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChatDao {
+    @Query("SELECT * FROM chats WHERE id = :id")
+    fun observeById(id: String): Flow<ChatEntity?>
+
     @Query("SELECT * FROM chats ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<ChatEntity>>
 

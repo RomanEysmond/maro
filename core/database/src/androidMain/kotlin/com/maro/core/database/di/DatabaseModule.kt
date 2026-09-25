@@ -8,4 +8,5 @@ import org.koin.dsl.module
 val databaseModule = module {
     single { buildDatabase(androidContext()) }
     single { get<MaroDatabase>().chatDao() }
+    single { get<MaroDatabase>().messageDao() }
 }

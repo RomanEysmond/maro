@@ -40,6 +40,7 @@ dependencies {
     implementation(project(":feature:auth:presentation"))
     implementation(project(":feature:chatlist:data"))
     implementation(project(":feature:chatlist:presentation"))
+    implementation(project(":feature:chat:data"))
     implementation(project(":feature:chat:presentation"))
     implementation(project(":feature:profile:data"))
     implementation(project(":feature:profile:presentation"))

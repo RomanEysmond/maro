@@ -16,7 +16,7 @@ import com.maro.core.domain.util.Result
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Firestore documents `users/{uid}` and `usernames/{username}` (-> `{uid}`, makes usernames unique).
+ * Firestore documents `users/{uid}` and `usernames/{username}` (-> uid + name: makes usernames unique and is the public card).
  * Their shape is enforced by `firestore.rules`.
  */
 internal class FirestoreUserProfileRemoteDataSource(
@@ -65,16 +65,20 @@ internal class FirestoreUserProfileRemoteDataSource(
                 val oldUsername = transaction.get(userRef).getString("username")
                 val newUsername = update.username
 
-                if (newUsername != oldUsername) {
-                    if (newUsername != null) {
-                        val claim = firestore.collection(USERNAMES).document(newUsername)
-                        // A failed check returns without writing anything, so nothing is committed.
-                        if (transaction.get(claim).exists()) return@runTransaction false
-                        transaction.set(claim, mapOf("uid" to uid))
-                    }
-                    if (oldUsername != null) {
-                        transaction.delete(firestore.collection(USERNAMES).document(oldUsername))
-                    }
+                if (newUsername != null) {
+                    val claim = firestore.collection(USERNAMES).document(newUsername)
+                    // A failed check returns without writing anything, so nothing is committed.
+                    if (newUsername != oldUsername && transaction.get(claim).exists()) return@runTransaction false
+                    // The public card: what anybody who finds this @username may see (their uid and name).
+                    // Written on every save, not only when the username changes, so a renamed person is
+                    // never found under their old name.
+                    transaction.set(
+                        claim,
+                        mapOf("uid" to uid, "firstName" to update.firstName, "lastName" to update.lastName),
+                    )
+                }
+                if (oldUsername != null && oldUsername != newUsername) {
+                    transaction.delete(firestore.collection(USERNAMES).document(oldUsername))
                 }
 
                 transaction.update(

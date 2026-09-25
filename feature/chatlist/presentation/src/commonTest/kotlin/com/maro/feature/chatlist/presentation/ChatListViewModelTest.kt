@@ -79,6 +79,18 @@ class ChatListViewModelTest {
     }
 
     @Test
+    fun `chats that arrive later clear the error of a failed first sync`() {
+        val repository = FakeChatRepository().apply { syncResult = Result.Error(DataError.Network.NO_INTERNET) }
+        val viewModel = ChatListViewModel(repository)
+        assertThat(viewModel.state.value.error).isNotNull()
+
+        repository.setChats(listOf(chat))
+
+        assertThat(viewModel.state.value.chats).isEqualTo(listOf(chat))
+        assertThat(viewModel.state.value.error).isNull()
+    }
+
+    @Test
     fun `retry calls sync again`() {
         val repository = FakeChatRepository()
         val viewModel = ChatListViewModel(repository)
