@@ -13,6 +13,7 @@ data object ChatListRoute
 
 /** Navigation graph of the chat list. Every destination outside this feature is a callback. */
 fun NavGraphBuilder.chatListGraph(
+    onOpenChat: (chatId: String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHelp: () -> Unit,
@@ -20,6 +21,7 @@ fun NavGraphBuilder.chatListGraph(
     navigation<ChatListGraphRoute>(startDestination = ChatListRoute) {
         composable<ChatListRoute> {
             ChatListRoot(
+                onOpenChat = onOpenChat,
                 onOpenProfile = onOpenProfile,
                 onOpenSettings = onOpenSettings,
                 onOpenHelp = onOpenHelp,

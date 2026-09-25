@@ -1,7 +1,10 @@
 <resources>
     <string name="chat_list_title">Maro</string>
     <string name="chat_list_menu">Меню</string>
-    <string name="chat_list_placeholder">Место в разработке</string>
+    <string name="chat_list_empty_title">Пока нет чатов</string>
+    <string name="chat_list_empty_subtitle">Начните переписку — и она появится здесь</string>
+    <string name="chat_list_no_messages_yet">Сообщений пока нет</string>
+    <string name="chat_list_retry">Повторить</string>
     <string name="menu_profile">Профиль</string>
     <string name="menu_settings">Настройки</string>
     <string name="menu_help">Справка</string>

@@ -49,16 +49,17 @@
 build-logic               convention plugins: maro.android.application, maro.kmp.library, maro.kmp.compose, maro.kmp.feature
 :core:domain              Result, Error, DataError, профиль пользователя (без Compose и Android)
 :core:data                Firebase-объекты (androidMain), Task.await(); позже Ktor-клиент, safeCall
+:core:database            Room 3 (KMP): MaroDatabase, ChatDao/ChatEntity; источник данных для UI (этап 3)
 :core:presentation        UiText, ObserveAsEvents, DataError.toUiText() (+ строки ошибок)
-:core:design-system       MaroTheme (светлая/тёмная), общие ресурсы (logo.png)
+:core:design-system       MaroTheme (светлая/тёмная), InitialsAvatar, общие ресурсы (logo.png)
 :feature:auth:{domain,data,presentation}
 :feature:chatlist:{domain,data,presentation}
 :feature:chat:{domain,data,presentation}
 :feature:profile:{domain,data,presentation}
 ```
-Правила зависимостей: `presentation` → `domain` своей фичи + `core:*`; `data` → `domain` своей фичи + `core:domain`/`core:data`;
+Правила зависимостей: `presentation` → `domain` своей фичи + `core:*`; `data` → `domain` своей фичи + `core:domain`/`core:data`/`core:database`;
 `domain` → только `core:domain`; фичи друг от друга не зависят (общее выносится в `core:domain` / `core:presentation`);
-`:app` знает всё. Модули `domain`/`data` у фич пока пустые заготовки. Отдельный `:core:database` (Room) появится на этапе 3.
+`:app` знает всё. Модули `domain`/`data` у `feature:chat` и `feature:profile:domain` пока пустые заготовки.
 Пакеты модулей: `com.maro.<путь модуля>`; пакет сгенерированного `Res` у каждого модуля уникален
 (`com.maro.<путь>.generated.resources`, дефис → подчёркивание, например `com.maro.core.design_system...`).
 
@@ -92,11 +93,28 @@ build-logic               convention plugins: maro.android.application, maro.kmp
   на Spark недоступен). Уникальность @username: документ `usernames/{name}` → uid, claim и смена в одной транзакции; правила это
   проверяют (`isUsernameClaimed`). Правила `firestore.rules` опубликованы владельцем в консоли (при изменении — публиковать заново вручную).
 - Firebase `auth`/`firestore` подключены в `feature:auth:data`, `messaging` — в `:app` (пока не используется); плагин `google-services` в `:app`.
+- **Этап 3** (ветка `stage-3-chatlist`, не закоммичен; сборка и 60 юнит-тестов зелёные; на эмуляторе проверены: пустой список
+  («Пока нет чатов»), ошибочное состояние офлайн («Нет подключения к интернету» + «Повторить»), сессия и Room переживают
+  перезапуск приложения; правила Firestore для `chats` опубликованы, после этого список открывается без ошибок): `:core:database` — Room 3.0 (`androidx.room3`, новые координаты, KMP-first, пришёл на смену
+  `androidx.room` 2.x) + KSP; `MaroDatabase` (`@ConstructedBy`-конструктор генерируется компилятором, не пишется руками),
+  `ChatEntity`/`ChatDao` (`replaceAll` = upsert + удаление лишнего, курсора не нужно — Firestore-листенер шлёт весь
+  актуальный список целиком, не дельты). `Chat`/`ChatParticipant`/`LastMessage`/`ChatRepository` в `feature:chatlist:domain`
+  (данные чата, а не только сообщений; группы — только поле `type`, сама логика групп на этапе 6). `feature:chatlist:data`:
+  `FirestoreChatRemoteDataSource` (запрос без `orderBy` — сортировка в Room, чтобы не заводить составной индекс), имя/фамилия/
+  `@username` собеседника денормализованы в `participantInfo` на самом документе чата (список никогда не читает чужой
+  `users/{uid}`). `DefaultChatRepository.chats` — `StateFlow` (не просто `Flow`): `sync()` в вьюмодели проверяет
+  `repository.chats.value` синхронно, а не своё же `state.chats` — иначе гонка с фоновым слушателем показывает ошибку
+  поверх уже пришедших данных (нашёл и тем же способом починил аналогичный баг и в `ProfileViewModel`, этап 2). Запрос
+  `fetchChats()` идёт с `Source.SERVER`: без этого офлайн-провал Firestore молча откатывается на пустой memory-кэш и
+  выглядит как «чатов нет», а не как ошибка. `firestore.rules`: правила для `chats/{chatId}` опубликованы владельцем. До публикации
+  любое обращение к `chats` возвращало PERMISSION_DENIED (проверено на эмуляторе). Тап по чату ведёт в
+  `ChatRoute(chatId)`, но создавать чаты пока негде — это этап 4 (первое сообщение создаёт чат).
 
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
-lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0.
+lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0,
+Room 3.0.2 (`androidx.room3`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1.
 Convention plugins в `build-logic` — обычные Kotlin-классы (не `kotlin-dsl`): встроенный Kotlin Gradle 8.x не читает метаданные
 Kotlin 2.3. Версии SDK и библиотек — только в `gradle/libs.versions.toml`. Нужна Android Studio 2025.1.3+ (у владельца Quail 4).
 
@@ -109,9 +127,9 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 
 ## План этапов
 1. ✅ Каркас.
-2. **SMS-вход через Firebase Auth (Phone)** + сохранение сессии + профиль (следующий).
-3. Список чатов: Room + Flow, `:core:database`, пустые/ошибочные состояния, Security Rules для чатов.
-4. Личные сообщения (текст): оптимистичная отправка, статусы, ретраи (WorkManager).
+2. ✅ SMS-вход через Firebase Auth (Phone) + сохранение сессии + профиль.
+3. ✅ Список чатов: Room + Flow, `:core:database`, пустые/ошибочные состояния, Security Rules для чатов.
+4. **Личные сообщения (текст)** (следующий): оптимистичная отправка, статусы, ретраи (WorkManager).
 5. Курсорная синхронизация, Paging 3 + RemoteMediator; 5б — пуши через мини-сервер (без Cloud Functions).
 6. Группы, `last_read_message_id`, «печатает…».
 7. Полировка: SQLCipher/Keystore, локализация RU/EN, ktlint/detekt, a11y, R8 для release, `POST_NOTIFICATIONS`, SavedStateHandle там, где нужно.
@@ -128,10 +146,16 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 - Для входа нужны SHA-1/SHA-256 debug-ключа в Firebase (добавлены), тестовые номера Firebase для разработки.
 
 ## Известные хвосты
-- Этап 2: для SMS на +7 в консоли Firebase (Authentication → Settings → SMS region policy) должна быть разрешена Россия, иначе ошибка 17006 «SMS unable to be sent until this region enabled». Если после верного SMS-кода не удалось сохранить профиль и приложение убито, при следующем запуске пользователь уже «залогинен» без `users/{uid}` (профиль нигде пока не читается). Автоподстановка SMS, пришедшего после `onCodeSent`, игнорируется — код вводится вручную. Не проверено: занятое @username (нужен второй пользователь) и отказы правил для чужих документов.
-- Firestore Rules пока `request.auth != null` для всего — заменить на этапе 2–3.
+- **Этап 3:** правила для `chats` опубликованы; без них (при смене `firestore.rules` их нужно публиковать заново) список чатов
+  получает PERMISSION_DENIED. Заполненное состояние списка (реальные чаты) на устройстве
+  не проверялось — создавать чат пока негде (это этап 4); можно добавить документ в `chats/` вручную в консоли (форму
+  смотреть в `firestore.rules`) для визуальной проверки, но это не обязательно. Занятое @username (нужен второй
+  пользователь) и отказ правил на чужих документах — тоже не проверялись на реальном Firestore, только юнит-тестами.
+  `MaroDatabase`/`ChatDao` в `:core:database` не собирались и не запускались на iOS (нет Mac) — код написан по
+  официальному образцу Room KMP, но не проверен.
+- Этап 2: для SMS на +7 в консоли Firebase (Authentication → Settings → SMS region policy) должна быть разрешена Россия, иначе ошибка 17006 «SMS unable to be sent until this region enabled». Если после верного SMS-кода не удалось сохранить профиль и приложение убито, при следующем запуске пользователь уже «залогинен» без `users/{uid}` (профиль нигде пока не читается). Автоподстановка SMS, пришедшего после `onCodeSent`, игнорируется — код вводится вручную.
 - `com.android.library` + Kotlin Multiplatform помечен устаревшим (несовместим с AGP 9) — позже перейти на
   `com.android.kotlin.multiplatform.library`.
 - ktlint/detekt не настроены (detekt может не поддерживать Kotlin 2.3); `lintDebug` для KMP-модулей не гонялся.
 - Ограничение Firebase API-ключа в Google Cloud Console не настроено (необязательно; ключ не секрет, защиту дают Security Rules).
-- Отсутствуют: iOS-приложение, Room/`:core:database`, Ktor, WorkManager, DataStore.
+- Отсутствуют: iOS-приложение, Ktor, WorkManager, DataStore.

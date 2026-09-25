@@ -32,11 +32,13 @@ dependencies {
     // Shared
     implementation(project(":core:design-system"))
     implementation(project(":core:data"))
+    implementation(project(":core:database"))
 
     // Features: :app is the only place that knows all of them and wires them together
     implementation(project(":feature:auth:domain"))
     implementation(project(":feature:auth:data"))
     implementation(project(":feature:auth:presentation"))
+    implementation(project(":feature:chatlist:data"))
     implementation(project(":feature:chatlist:presentation"))
     implementation(project(":feature:chat:presentation"))
     implementation(project(":feature:profile:data"))
