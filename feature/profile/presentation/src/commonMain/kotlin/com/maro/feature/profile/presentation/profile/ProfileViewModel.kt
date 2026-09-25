@@ -45,7 +45,9 @@ class ProfileViewModel(
             val result = repository.refreshProfile()
             val error = (result as? Result.Error)?.error?.toUiText()
             // A stale profile is still worth showing; the error matters only when there is nothing to show.
-            _state.update { current -> current.copy(isLoading = false, error = error.takeIf { current.profile == null }) }
+            // Reads the repository's own current value, not `state.profile`: the `onEach` above updates state
+            // from a separate coroutine, so state could still be stale at this exact point.
+            _state.update { it.copy(isLoading = false, error = error.takeIf { repository.profile.value == null }) }
         }
     }
 }

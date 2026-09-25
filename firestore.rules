@@ -34,7 +34,9 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      // Chats (stage 3) will need to read other users' names; open that up together with the chat rules.
+      // Chat participants' names are copied onto the chat document itself (see /chats), so the chat list
+      // never has to read someone else's profile. Starting a new chat (stage 4) will need a narrow read
+      // here (e.g. by username) to build that copy — not needed yet.
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && isValidProfile(request.resource.data)
@@ -56,6 +58,39 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid;
       allow update: if false;
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+    // A direct chat between exactly two users. Participant names/usernames are copied onto the chat
+    // (see /users above) so the list never needs a second read. Nothing writes here yet (stage 4 sends
+    // the first message and creates the chat); the rules are ready ahead of that.
+    match /chats/{chatId} {
+      function isValidChat(chat) {
+        return chat.keys().hasOnly(
+            ['type', 'participants', 'participantInfo', 'lastMessageText', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt', 'createdAt']
+          )
+          && chat.keys().hasAll(['type', 'participants', 'participantInfo', 'updatedAt', 'createdAt'])
+          && chat.type == 'direct'
+          && chat.participants is list && chat.participants.size() == 2
+          && request.auth.uid in chat.participants
+          && chat.participantInfo is map && chat.participantInfo.keys().hasAll(chat.participants)
+          && chat.updatedAt is timestamp
+          && chat.createdAt is timestamp
+          && (!('lastMessageText' in chat) || chat.lastMessageText is string)
+          && (!('lastMessageSenderId' in chat) || chat.lastMessageSenderId in chat.participants)
+          && (!('lastMessageAt' in chat) || chat.lastMessageAt is timestamp);
+      }
+
+      allow read: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null
+        && isValidChat(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      // Messaging (stage 4) updates lastMessage*/updatedAt only; participants and createdAt are fixed.
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.participants
+        && isValidChat(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.participants == resource.data.participants;
+      allow delete: if false;
     }
 
     // Everything else is closed until the feature that needs it ships its own rules.

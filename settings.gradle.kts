@@ -28,6 +28,7 @@ include(":app")
 // Shared modules
 include(":core:domain")
 include(":core:data")
+include(":core:database")
 include(":core:presentation")
 include(":core:design-system")
 

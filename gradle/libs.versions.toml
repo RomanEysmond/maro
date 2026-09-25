@@ -21,6 +21,12 @@ koin = "4.2.2"
 coroutines = "1.10.2"
 serialization = "1.9.0"
 
+# Local database (stage 3): Room 3.0 is Kotlin-first/KMP-native (new "androidx.room3" coordinates,
+# androidx.room 2.x is in maintenance mode). KSP version is independent of the Kotlin version since KSP2.
+room = "3.0.2"
+sqlite = "2.7.1"
+ksp = "2.3.10"
+
 # Android
 activityCompose = "1.9.3"
 coreKtx = "1.15.0"
@@ -80,6 +86,11 @@ firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
+# --- Room (KMP; stage 3) ---
+androidx-room-runtime = { group = "androidx.room3", name = "room3-runtime", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "room" }
+androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqlite" }
+
 # --- Tests ---
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -98,3 +109,5 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+androidx-room = { id = "androidx.room3", version.ref = "room" }

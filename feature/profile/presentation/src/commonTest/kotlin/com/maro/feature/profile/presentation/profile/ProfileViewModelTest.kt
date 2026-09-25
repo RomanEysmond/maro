@@ -72,6 +72,21 @@ class ProfileViewModelTest {
     }
 
     @Test
+    fun `a profile that arrives during a failing refresh still hides the error`() {
+        // Regression: the error must be decided from the repository's own current value, not from state
+        // that a separate collector (of the same repository flow) may not have caught up with yet.
+        val repository = FakeUserProfileRepository(null).apply {
+            profileAfterRefresh = sampleProfile
+            refreshResult = Result.Error(DataError.Network.NO_INTERNET)
+        }
+
+        val state = ProfileViewModel(repository).state.value
+
+        assertThat(state.profile).isEqualTo(sampleProfile)
+        assertThat(state.error).isNull()
+    }
+
+    @Test
     fun `retry loads the profile again`() {
         val repository = FakeUserProfileRepository().apply {
             refreshResult = Result.Error(DataError.Network.NO_INTERNET)

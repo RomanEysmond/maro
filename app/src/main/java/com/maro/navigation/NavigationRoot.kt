@@ -13,6 +13,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import com.maro.MainViewModel
 import com.maro.feature.auth.presentation.AuthGraphRoute
 import com.maro.feature.auth.presentation.authGraph
+import com.maro.feature.chat.presentation.ChatRoute
 import com.maro.feature.chat.presentation.chatGraph
 import com.maro.feature.chatlist.presentation.ChatListGraphRoute
 import com.maro.feature.chatlist.presentation.chatListGraph
@@ -62,6 +63,7 @@ fun NavigationRoot(
             },
         )
         chatListGraph(
+            onOpenChat = { chatId -> navController.navigate(ChatRoute(chatId)) },
             onOpenProfile = { navController.navigate(ProfileRoute) },
             onOpenSettings = { navController.navigate(SettingsRoute) },
             onOpenHelp = { navController.navigate(HelpRoute) },

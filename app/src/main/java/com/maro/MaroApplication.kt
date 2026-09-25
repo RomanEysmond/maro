@@ -3,8 +3,11 @@ package com.maro
 import android.app.Application
 import com.maro.di.appModule
 import com.maro.core.data.di.firebaseCoreModule
+import com.maro.core.database.di.databaseModule
 import com.maro.feature.auth.data.di.authDataModule
 import com.maro.feature.auth.presentation.di.authPresentationModule
+import com.maro.feature.chatlist.data.di.chatListDataModule
+import com.maro.feature.chatlist.presentation.di.chatListPresentationModule
 import com.maro.feature.profile.data.di.profileDataModule
 import com.maro.feature.profile.presentation.di.profilePresentationModule
 import org.koin.android.ext.koin.androidContext
@@ -18,9 +21,12 @@ class MaroApplication : Application() {
             modules(
                 appModule,
                 firebaseCoreModule,
+                databaseModule,
                 // features (a Koin module is added only when a layer has something to provide)
                 authDataModule,
                 authPresentationModule,
+                chatListDataModule,
+                chatListPresentationModule,
                 profileDataModule,
                 profilePresentationModule,
             )
