@@ -14,12 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,6 +55,7 @@ import com.maro.feature.chatlist.presentation.generated.resources.Res
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empty_subtitle
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empty_title
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_menu
+import com.maro.feature.chatlist.presentation.generated.resources.chat_list_new_chat
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_no_messages_yet
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_retry
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_title
@@ -67,6 +70,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun ChatListRoot(
+    onNewChatClick: () -> Unit,
     onOpenChat: (chatId: String) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -84,6 +88,7 @@ fun ChatListRoot(
     ChatListScreen(
         state = state,
         onAction = viewModel::onAction,
+        onNewChatClick = onNewChatClick,
         onProfileClick = onOpenProfile,
         onSettingsClick = onOpenSettings,
         onHelpClick = onOpenHelp,
@@ -101,6 +106,7 @@ private data class DrawerMenuItem(
 fun ChatListScreen(
     state: ChatListState,
     onAction: (ChatListAction) -> Unit,
+    onNewChatClick: () -> Unit,
     onProfileClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onHelpClick: () -> Unit,
@@ -127,6 +133,14 @@ fun ChatListScreen(
         },
     ) {
         Scaffold(
+            floatingActionButton = {
+                FloatingActionButton(onClick = onNewChatClick) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = stringResource(Res.string.chat_list_new_chat),
+                    )
+                }
+            },
             topBar = {
                 TopAppBar(
                     title = { Text(stringResource(Res.string.chat_list_title)) },
@@ -285,6 +299,7 @@ private fun ChatListScreenEmptyPreview() {
         ChatListScreen(
             state = ChatListState(),
             onAction = {},
+            onNewChatClick = {},
             onProfileClick = {},
             onSettingsClick = {},
             onHelpClick = {},
@@ -309,6 +324,7 @@ private fun ChatListScreenPopulatedPreview() {
                 ),
             ),
             onAction = {},
+            onNewChatClick = {},
             onProfileClick = {},
             onSettingsClick = {},
             onHelpClick = {},

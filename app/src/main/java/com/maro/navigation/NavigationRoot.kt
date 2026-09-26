@@ -63,12 +63,13 @@ fun NavigationRoot(
             },
         )
         chatListGraph(
+            navController = navController,
             onOpenChat = { chatId -> navController.navigate(ChatRoute(chatId)) },
             onOpenProfile = { navController.navigate(ProfileRoute) },
             onOpenSettings = { navController.navigate(SettingsRoute) },
             onOpenHelp = { navController.navigate(HelpRoute) },
         )
-        chatGraph()
+        chatGraph(onNavigateBack = { navController.popBackStack() })
         profileGraph(
             navController = navController,
             onLogout = mainViewModel::onLogoutClick,

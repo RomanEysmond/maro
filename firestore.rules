@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Publish by hand: Firebase Console -> Firestore Database -> Rules (Claude has no access to the console).
-// The limits below must match ProfileRules in :core:domain.
+// The limits below must match ProfileRules and MessageRules in :core:domain / :feature:chat:domain.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -11,6 +11,10 @@ service cloud.firestore {
 
     function usernamePath(name) {
       return /databases/$(database)/documents/usernames/$(name);
+    }
+
+    function chatPath(chatId) {
+      return /databases/$(database)/documents/chats/$(chatId);
     }
 
     // Optional fields may be absent, but when present they must be well-formed.
@@ -33,10 +37,18 @@ service cloud.firestore {
             && getAfter(usernamePath(profile.username)).data.uid == request.auth.uid);
     }
 
+    // The public card behind a username: who owns it and what they are called (nothing else is public).
+    function isValidUsernameCard(card) {
+      return card.keys().hasOnly(['uid', 'firstName', 'lastName'])
+        && card.keys().hasAll(['uid', 'firstName', 'lastName'])
+        && card.uid == request.auth.uid
+        && card.firstName is string && card.firstName.size() > 0 && card.firstName.size() <= 64
+        && card.lastName is string && card.lastName.size() <= 64;
+    }
+
     match /users/{uid} {
-      // Chat participants' names are copied onto the chat document itself (see /chats), so the chat list
-      // never has to read someone else's profile. Starting a new chat (stage 4) will need a narrow read
-      // here (e.g. by username) to build that copy — not needed yet.
+      // Nobody else reads a profile: what other people may see is the public card in /usernames and the
+      // participant names copied onto the chat itself (see /chats).
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
         && isValidProfile(request.resource.data)
@@ -49,20 +61,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Makes usernames unique: the document id is the username, the field points to the owner.
+    // Makes usernames unique (the document id is the username) and is what "find by @username" reads.
     match /usernames/{name} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
         && name.matches('^[a-z][a-z0-9_]{4,31}$')
-        && request.resource.data.keys().hasOnly(['uid'])
-        && request.resource.data.uid == request.auth.uid;
-      allow update: if false;
+        && isValidUsernameCard(request.resource.data);
+      // The owner keeps the card current (for example after changing their name).
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && isValidUsernameCard(request.resource.data);
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
-    // A direct chat between exactly two users. Participant names/usernames are copied onto the chat
-    // (see /users above) so the list never needs a second read. Nothing writes here yet (stage 4 sends
-    // the first message and creates the chat); the rules are ready ahead of that.
+    // A direct chat between exactly two users. The id is "<uid1>_<uid2>" with the ids in order, so a pair of
+    // people has one chat. Participant names/usernames are copied onto the chat (see /usernames above) so the
+    // list never needs a second read.
     match /chats/{chatId} {
       function isValidChat(chat) {
         return chat.keys().hasOnly(
@@ -71,26 +85,51 @@ service cloud.firestore {
           && chat.keys().hasAll(['type', 'participants', 'participantInfo', 'updatedAt', 'createdAt'])
           && chat.type == 'direct'
           && chat.participants is list && chat.participants.size() == 2
+          && chat.participants[0] != chat.participants[1]
           && request.auth.uid in chat.participants
           && chat.participantInfo is map && chat.participantInfo.keys().hasAll(chat.participants)
           && chat.updatedAt is timestamp
           && chat.createdAt is timestamp
-          && (!('lastMessageText' in chat) || chat.lastMessageText is string)
+          && (!('lastMessageText' in chat) || (chat.lastMessageText is string && chat.lastMessageText.size() <= 4000))
           && (!('lastMessageSenderId' in chat) || chat.lastMessageSenderId in chat.participants)
           && (!('lastMessageAt' in chat) || chat.lastMessageAt is timestamp);
       }
 
-      allow read: if request.auth != null && request.auth.uid in resource.data.participants;
+      // `get` also has to work for a chat that does not exist yet: "create it unless it exists" reads it first,
+      // and a missing document has no `resource` to look at. That reveals nothing: the id is just two user ids.
+      allow get: if request.auth != null
+        && (resource == null || request.auth.uid in resource.data.participants);
+      allow list: if request.auth != null && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
         && isValidChat(request.resource.data)
+        && chatId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1]
         && request.resource.data.createdAt == request.time;
-      // Messaging (stage 4) updates lastMessage*/updatedAt only; participants and createdAt are fixed.
+      // Sending a message is the only update: it moves lastMessage* and updatedAt, nothing else.
       allow update: if request.auth != null
         && request.auth.uid in resource.data.participants
         && isValidChat(request.resource.data)
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.participants == resource.data.participants;
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['lastMessageText', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt'])
+        && request.resource.data.lastMessageSenderId == request.auth.uid
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.updatedAt == request.time;
       allow delete: if false;
+
+      // The document id is the client_id (UUID) the sender generated, which makes sending idempotent.
+      match /messages/{messageId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(chatPath(chatId)).data.participants;
+        // getAfter: the message is written in the same transaction that moves the chat's lastMessage.
+        allow create: if request.auth != null
+          && request.auth.uid in getAfter(chatPath(chatId)).data.participants
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt', 'clientId'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 4000
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.clientId == messageId;
+        allow update, delete: if false;
+      }
     }
 
     // Everything else is closed until the feature that needs it ships its own rules.

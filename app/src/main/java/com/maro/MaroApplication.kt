@@ -6,6 +6,8 @@ import com.maro.core.data.di.firebaseCoreModule
 import com.maro.core.database.di.databaseModule
 import com.maro.feature.auth.data.di.authDataModule
 import com.maro.feature.auth.presentation.di.authPresentationModule
+import com.maro.feature.chat.data.di.chatDataModule
+import com.maro.feature.chat.presentation.di.chatPresentationModule
 import com.maro.feature.chatlist.data.di.chatListDataModule
 import com.maro.feature.chatlist.presentation.di.chatListPresentationModule
 import com.maro.feature.profile.data.di.profileDataModule
@@ -25,6 +27,8 @@ class MaroApplication : Application() {
                 // features (a Koin module is added only when a layer has something to provide)
                 authDataModule,
                 authPresentationModule,
+                chatDataModule,
+                chatPresentationModule,
                 chatListDataModule,
                 chatListPresentationModule,
                 profileDataModule,

@@ -28,7 +28,8 @@ class ChatListViewModel(
         // Room is the source of truth: this keeps the screen current with whatever the repository has cached,
         // including updates the background listener writes after `sync()` below has already returned.
         repository.chats
-            .onEach { chats -> _state.update { it.copy(chats = chats) } }
+            // Data arriving (from the background listener, after a failed first sync) makes an old error obsolete.
+            .onEach { chats -> _state.update { it.copy(chats = chats, error = it.error.takeIf { chats.isEmpty() }) } }
             .launchIn(viewModelScope)
         sync()
     }

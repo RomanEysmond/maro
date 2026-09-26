@@ -17,6 +17,11 @@ class FakeChatRepository : ChatRepository {
     var chatsAfterSync: List<Chat>? = null
     var syncCalls = 0
 
+    /** Simulates the background listener writing into Room. */
+    fun setChats(chats: List<Chat>) {
+        _chats.value = chats
+    }
+
     override suspend fun sync(): EmptyResult<DataError.Network> {
         syncCalls++
         chatsAfterSync?.let { _chats.value = it }

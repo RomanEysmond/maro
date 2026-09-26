@@ -49,7 +49,7 @@
 build-logic               convention plugins: maro.android.application, maro.kmp.library, maro.kmp.compose, maro.kmp.feature
 :core:domain              Result, Error, DataError, профиль пользователя (без Compose и Android)
 :core:data                Firebase-объекты (androidMain), Task.await(); позже Ktor-клиент, safeCall
-:core:database            Room 3 (KMP): MaroDatabase, ChatDao/ChatEntity; источник данных для UI (этап 3)
+:core:database            Room 3 (KMP): MaroDatabase, чаты и сообщения; источник данных для UI (этапы 3–4)
 :core:presentation        UiText, ObserveAsEvents, DataError.toUiText() (+ строки ошибок)
 :core:design-system       MaroTheme (светлая/тёмная), InitialsAvatar, общие ресурсы (logo.png)
 :feature:auth:{domain,data,presentation}
@@ -110,11 +110,32 @@ build-logic               convention plugins: maro.android.application, maro.kmp
   любое обращение к `chats` возвращало PERMISSION_DENIED (проверено на эмуляторе). Тап по чату ведёт в
   `ChatRoute(chatId)`, но создавать чаты пока негде — это этап 4 (первое сообщение создаёт чат).
 
+- **Этап 4** (ветка `stage-4-messages`, не закоммичен; сборка и 102 юнит-теста зелёные; на эмуляторе проверены миграция БД 1→2 на
+  установленном приложении, поиск по @username, создание чата, отправка, получение вторым аккаунтом (Anna ↔ Ivan), превью в списке,
+  офлайн-очередь (часы → галочка сама, когда вернулась сеть); правила опубликованы): новая зависимость WorkManager 2.11.2
+  (только Android, за интерфейсом `OutboxScheduler`). Чат создаётся не первым сообщением, а при выборе человека (`NewChatRepository`,
+  экран `NewChatRoute` из кнопки на списке): `chats/{uid1}_{uid2}` с отсортированными id, транзакция «создать, если нет» —
+  отправке не нужны данные собеседника, а пустой чат виден в списке («Сообщений пока нет»). Поиск: публичная «визитка»
+  `usernames/{имя}` = `{uid, firstName, lastName}` (профиль `users/{uid}` по-прежнему читает только владелец); визитка
+  обновляется при каждом сохранении профиля, у старых аккаунтов без имени в визитке поиск не находит — нужно один раз сохранить
+  профиль. Сообщения: `chats/{chatId}/messages/{clientId}` (id = UUID = идемпотентность), Room `MessageEntity` (`SENDING` →
+  `SENT` / `FAILED`), `DefaultMessageRepository`: запись в Room до сети, мгновенная попытка в процессе + `OutboxWorker`
+  (WorkManager, `NETWORK_CONNECTED`, экспоненциальный backoff, `APPEND_OR_REPLACE`); нет сети — ждём сколько угодно, прочие
+  сбои — 4 попытки, отказ по правам — сразу `FAILED` (тап по иконке — повтор). Отправка = одна транзакция Firestore: сообщение +
+  `lastMessage*`/`updatedAt` чата (список чатов не расходится с перепиской); повтор уже доставленного ничего не пишет. Слушатель
+  последних 50 сообщений пишет в Room (`syncMessages`, пока открыт экран); экран читает только Room. `CurrentUserProvider` в
+  `:core:domain` (uid без Firebase в common-коде). Правила: чат создаётся только с id `uid1_uid2`; обновление чата — только
+  `lastMessage*`/`updatedAt` от отправителя; сообщение — только участником, `senderId == auth.uid`, до 4000 символов.
+  Чтение документа `chats/{id}` разбито на `get` (разрешено и для ещё не существующего: «создать, если нет» читает его первым,
+  а у пустого документа нет `resource`) и `list` (только участникам). Статусы DELIVERED/READ, время у сообщений и пагинация — позже.
+  Не проверено: `FAILED` на реальном отказе сервера, повтор по тапу на устройстве (покрыто юнит-тестами), работа при убитом
+  приложении (WorkManager). Эмулятор на этой машине после долгого простоя засыпает и теряет символы при быстром вводе.
+
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
 lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0,
-Room 3.0.2 (`androidx.room3`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1.
+Room 3.0.2 (`androidx.room3`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2.
 Convention plugins в `build-logic` — обычные Kotlin-классы (не `kotlin-dsl`): встроенный Kotlin Gradle 8.x не читает метаданные
 Kotlin 2.3. Версии SDK и библиотек — только в `gradle/libs.versions.toml`. Нужна Android Studio 2025.1.3+ (у владельца Quail 4).
 
@@ -129,7 +150,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 1. ✅ Каркас.
 2. ✅ SMS-вход через Firebase Auth (Phone) + сохранение сессии + профиль.
 3. ✅ Список чатов: Room + Flow, `:core:database`, пустые/ошибочные состояния, Security Rules для чатов.
-4. **Личные сообщения (текст)** (следующий): оптимистичная отправка, статусы, ретраи (WorkManager).
+4. ✅ Личные сообщения (текст): оптимистичная отправка, статусы, ретраи (WorkManager).
 5. Курсорная синхронизация, Paging 3 + RemoteMediator; 5б — пуши через мини-сервер (без Cloud Functions).
 6. Группы, `last_read_message_id`, «печатает…».
 7. Полировка: SQLCipher/Keystore, локализация RU/EN, ktlint/detekt, a11y, R8 для release, `POST_NOTIFICATIONS`, SavedStateHandle там, где нужно.

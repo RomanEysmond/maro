@@ -1,0 +1,9 @@
+<resources>
+    <string name="chat_back">Назад</string>
+    <string name="chat_input_hint">Сообщение</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_empty">Напишите первое сообщение</string>
+    <string name="chat_status_sending">Отправляется</string>
+    <string name="chat_status_sent">Отправлено</string>
+    <string name="chat_status_failed">Не отправлено. Нажмите, чтобы повторить</string>
+</resources>
