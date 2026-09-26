@@ -131,11 +131,39 @@ build-logic               convention plugins: maro.android.application, maro.kmp
   Не проверено: `FAILED` на реальном отказе сервера, повтор по тапу на устройстве (покрыто юнит-тестами), работа при убитом
   приложении (WorkManager). Эмулятор на этой машине после долгого простоя засыпает и теряет символы при быстром вводе.
 
+- **Этап 5** (ветка `stage-5-sync`, не закоммичен; сборка и 119 юнит-тестов зелёные; на эмуляторе проверены: миграция БД 2→3 на
+  установленном приложении, догрузка истории прокруткой вверх (64 сообщения, страницы по 50, до начала чата), фоновая догрузка
+  чата без его открытия, «дыра» после офлайна (локально до p40, на сервере до p60) закрывается сама при возврате сети,
+  холодный старт без сети: список чатов и переписка из Room, в шапке «Ожидание сети…»; `firestore.rules` не менялись):
+  новые зависимости Paging 3.5.1 (`paging-common`, `paging-compose`, в тестах `paging-testing`) и `room3-paging` 3.0.2
+  (в Room 3 `PagingSource` у DAO работает только с `@DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter::class)`).
+  Курсорная синхронизация: у каждого чата в Room один непрерывный кусок переписки, его края — в таблице `message_sync`
+  (`MessageSyncEntity`: курсоры `(createdAt в микросекундах, id)` самого нового и самого старого сообщения, `reachedStart`).
+  Новое тянется только после верхнего курсора, история — только до нижнего, поэтому дыр не бывает. Микросекунды — точность
+  Firestore-таймстемпа (в миллисекундах курсор мог бы пропустить сообщение той же миллисекунды). Firestore-запросы
+  `fetchLatest`/`fetchNewer`/`fetchOlder`/`observeNewer` с `orderBy(createdAt, documentId)` + `startAfter`, всегда
+  `Source.SERVER`, составной индекс не понадобился. `MessageSynchronizer` (`feature:chat:data`): `catchUp` (новый чат —
+  только последняя страница 50, иначе всё после курсора страницами по 100), `loadOlder` (страница 50 до нижнего курсора),
+  `syncMessages` (догрузка, при отсутствии сети ждёт `ConnectivityObserver` и повторяет, потом слушатель новых сообщений;
+  статус `ChatSyncStatus` → шапка «Обновление…»/«Ожидание сети…»), `keepAllChatsInSync` (пока пользователь в сессии —
+  из `MainViewModel` — и есть сеть: догружает каждый чат, у которого `lastMessageAt` из списка чатов новее курсора).
+  Шаги синхронизации одного чата идут под своим мьютексом. `MessageRemoteMediator`: APPEND = старые страницы
+  (`LoadMessagesException` несёт `DataError` в UI), REFRESH/PREPEND ничего не делают — новое приносит синхронизатор.
+  `ConnectivityObserver` — интерфейс в `:core:domain`, Android-реализация в `:core:data` (`ACCESS_NETWORK_STATE`).
+  Экран: `LazyPagingItems`, сверху индикатор загрузки истории или ошибка с «Повторить»; список прижат к низу, а если
+  пользователь внизу, сам доезжает до новых сообщений (`LazyColumn` держит позицию по ключу, пачка новых сообщений иначе
+  оставалась бы ниже экрана). Исправлен баг этапа 3: офлайн первый снимок слушателя списка чатов приходит из пустого кэша
+  Firestore и `replaceAll` стирал все чаты в Room — теперь снимки `isFromCache` игнорируются (и в слушателе сообщений тоже).
+  Не проверено на устройстве: ошибка загрузки истории с кнопкой «Повторить» (покрыто юнит-тестами), чат с двумя собеседниками
+  одновременно (второй аккаунт на этом этапе не использовался), очень большая «дыра» (сотни сообщений — читаются все, по одному
+  чтению Firestore на сообщение; лимит Spark — 50 тыс. чтений в сутки).
+
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
 lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0,
-Room 3.0.2 (`androidx.room3`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2.
+Room 3.0.2 (`androidx.room3`, + `room3-paging`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2,
+Paging 3.5.1 (`paging-common`/`paging-compose` — KMP; `paging-compose` 3.5 требует Compose 1.9).
 Convention plugins в `build-logic` — обычные Kotlin-классы (не `kotlin-dsl`): встроенный Kotlin Gradle 8.x не читает метаданные
 Kotlin 2.3. Версии SDK и библиотек — только в `gradle/libs.versions.toml`. Нужна Android Studio 2025.1.3+ (у владельца Quail 4).
 
@@ -151,7 +179,11 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 2. ✅ SMS-вход через Firebase Auth (Phone) + сохранение сессии + профиль.
 3. ✅ Список чатов: Room + Flow, `:core:database`, пустые/ошибочные состояния, Security Rules для чатов.
 4. ✅ Личные сообщения (текст): оптимистичная отправка, статусы, ретраи (WorkManager).
-5. Курсорная синхронизация, Paging 3 + RemoteMediator; 5б — пуши через мини-сервер (без Cloud Functions).
+5. ✅ Курсорная синхронизация, Paging 3 + RemoteMediator, фоновая догрузка.
+5б. Пуши через мини-сервер (без Cloud Functions): `:server` (Ktor + Firebase Admin SDK), `POST /notify {chatId, messageId}`
+   с ID-токеном отправителя; FCM-токены в `users/{uid}/devices/{id}` (правка `firestore.rules`); data-пуш без текста →
+   `catchUp` чата → локальное уведомление; `POST_NOTIFICATIONS`. Нужен ключ сервисного аккаунта (файл вне репозитория,
+   путь через переменную окружения). Решено: сначала сервер локально (эмулятор → `10.0.2.2`), хостинг выбрать к концу 5б.
 6. Группы, `last_read_message_id`, «печатает…».
 7. Полировка: SQLCipher/Keystore, локализация RU/EN, ktlint/detekt, a11y, R8 для release, `POST_NOTIFICATIONS`, SavedStateHandle там, где нужно.
 8. Медиа (последним; хранилище выбираем к тому времени — Firebase Storage требует Blaze).
@@ -179,4 +211,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
   `com.android.kotlin.multiplatform.library`.
 - ktlint/detekt не настроены (detekt может не поддерживать Kotlin 2.3); `lintDebug` для KMP-модулей не гонялся.
 - Ограничение Firebase API-ключа в Google Cloud Console не настроено (необязательно; ключ не секрет, защиту дают Security Rules).
-- Отсутствуют: iOS-приложение, Ktor, WorkManager, DataStore.
+- Отсутствуют: iOS-приложение, Ktor, DataStore.
+- Время у сообщений и разделители по датам не сделаны: для KMP нужна `kotlinx-datetime` (новая зависимость, согласовать).
+- Выход из аккаунта не чистит Room (чаты и сообщения прошлого пользователя остаются в базе, хотя чужие чаты не показываются:
+  список заменяется данными сервера).

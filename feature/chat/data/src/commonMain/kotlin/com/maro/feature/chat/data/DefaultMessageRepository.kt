@@ -1,13 +1,20 @@
 package com.maro.feature.chat.data
 
+import androidx.paging.ExperimentalPagingApi
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import com.maro.core.database.chat.ChatDao
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.domain.auth.CurrentUserProvider
+import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatSyncStatus
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageRepository
 import com.maro.feature.chat.domain.MessageRules
@@ -22,9 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -40,6 +45,7 @@ class DefaultMessageRepository(
     private val remote: MessageRemoteDataSource,
     private val scheduler: OutboxScheduler,
     private val currentUser: CurrentUserProvider,
+    connectivity: ConnectivityObserver,
     // Same story as DefaultChatRepository: no lifecycle owner yet, so the process is the scope by default;
     // overridable so tests can drive the immediate send with a TestScope.
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -51,10 +57,17 @@ class DefaultMessageRepository(
     // (a double send would be harmless anyway — the server write is idempotent — but it is wasted work).
     private val outboxMutex = Mutex()
 
-    override fun messages(chatId: String): Flow<List<Message>> =
-        messageDao.observeByChat(chatId).map { entities ->
+    private val synchronizer = MessageSynchronizer(messageDao, chatDao, remote, connectivity)
+
+    @OptIn(ExperimentalPagingApi::class)
+    override fun messages(chatId: String): Flow<PagingData<Message>> =
+        Pager(
+            config = PagingConfig(pageSize = MessageSynchronizer.PAGE_SIZE, enablePlaceholders = false),
+            remoteMediator = MessageRemoteMediator(chatId, synchronizer),
+            pagingSourceFactory = { messageDao.pagingSource(chatId) },
+        ).flow.map { page ->
             val userId = currentUser.userId
-            entities.map { it.toDomain(userId) }
+            page.map { it.toDomain(userId) }
         }
 
     override fun chatHeader(chatId: String): Flow<ChatHeader?> =
@@ -96,24 +109,9 @@ class DefaultMessageRepository(
         dispatchOutbox()
     }
 
-    override suspend fun syncMessages(chatId: String): EmptyResult<DataError.Network> {
-        var failure: DataError.Network? = null
-        remote.observeMessages(chatId)
-            .takeWhile { result ->
-                when (result) {
-                    is Result.Success -> {
-                        messageDao.upsertAll(result.data.map { it.toEntity() })
-                        true
-                    }
-                    is Result.Error -> {
-                        failure = result.error
-                        false
-                    }
-                }
-            }
-            .collect()
-        return failure?.let { Result.Error(it) } ?: Result.Success(Unit)
-    }
+    override fun syncMessages(chatId: String): Flow<ChatSyncStatus> = synchronizer.syncMessages(chatId)
+
+    override suspend fun keepAllChatsInSync() = synchronizer.keepAllChatsInSync()
 
     override suspend fun flushOutbox(attempt: Int): OutboxResult = outboxMutex.withLock {
         for (message in messageDao.getByStatus(MessageStatus.SENDING.name)) {
@@ -151,9 +149,6 @@ class DefaultMessageRepository(
         -> true
         else -> false
     }
-
-    private fun DataError.Network.isConnectivity(): Boolean =
-        this == DataError.Network.NO_INTERNET || this == DataError.Network.REQUEST_TIMEOUT
 
     private companion object {
         /** Background runs that may fail for reasons other than connectivity before the message is given up on. */

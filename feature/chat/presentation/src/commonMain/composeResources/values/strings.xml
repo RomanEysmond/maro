@@ -6,4 +6,8 @@
     <string name="chat_status_sending">Отправляется</string>
     <string name="chat_status_sent">Отправлено</string>
     <string name="chat_status_failed">Не отправлено. Нажмите, чтобы повторить</string>
+    <string name="chat_updating">Обновление…</string>
+    <string name="chat_waiting_for_network">Ожидание сети…</string>
+    <string name="chat_history_error">Не удалось загрузить сообщения</string>
+    <string name="chat_history_retry">Повторить</string>
 </resources>

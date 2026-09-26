@@ -1,5 +1,6 @@
 package com.maro.feature.chat.data
 
+import androidx.paging.testing.asSnapshot
 import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.hasSize
@@ -9,6 +10,7 @@ import com.maro.core.database.chat.ChatEntity
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatSyncStatus
 import com.maro.feature.chat.domain.MessageRules
 import com.maro.feature.chat.domain.MessageStatus
 import com.maro.feature.chat.domain.OutboxResult
@@ -16,6 +18,8 @@ import com.maro.feature.chat.domain.SendError
 import kotlin.test.Test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
@@ -36,6 +40,7 @@ class DefaultMessageRepositoryTest {
         remote = remote,
         scheduler = scheduler,
         currentUser = user,
+        connectivity = FakeConnectivityObserver(),
         // Runs the immediate send eagerly, on the test thread, so the outcome is there when sendMessage returns.
         scope = CoroutineScope(UnconfinedTestDispatcher()),
         newId = { "id-${nextId++}" },
@@ -149,11 +154,10 @@ class DefaultMessageRepositoryTest {
     fun `the server copy of a message replaces the local one and its time`() = runTest {
         remote.sendResult = Result.Error(DataError.Network.NO_INTERNET)
         repository.sendMessage("chat", "hi")
-        remote.updates = listOf(Result.Success(listOf(RemoteMessage("id-0", "chat", "me", "hi", createdAt = 5_000L))))
+        remote.messages.value = listOf(serverMessage("id-0", second = 5, senderId = "me", text = "hi"))
 
-        val outcome = repository.syncMessages("chat")
+        repository.syncMessages("chat").first { it == ChatSyncStatus.Live }
 
-        assertThat(outcome).isEqualTo(Result.Success(Unit))
         val row = dao.rows.value.single()
         assertThat(row.status).isEqualTo(MessageStatus.SENT.name)
         assertThat(row.createdAt).isEqualTo(5_000L)
@@ -161,27 +165,26 @@ class DefaultMessageRepositoryTest {
 
     @Test
     fun `sync stops on a permanent failure and reports it`() = runTest {
-        remote.updates = listOf(Result.Error(DataError.Network.FORBIDDEN))
+        remote.listenerError = DataError.Network.FORBIDDEN
 
-        val outcome = repository.syncMessages("chat")
+        val last = repository.syncMessages("chat").last()
 
-        assertThat(outcome).isEqualTo(Result.Error(DataError.Network.FORBIDDEN))
+        assertThat(last).isEqualTo(ChatSyncStatus.Failed(DataError.Network.FORBIDDEN))
     }
 
     @Test
-    fun `messages tell outgoing from incoming by the signed in user`() = runTest {
+    fun `messages come newest first and tell outgoing from incoming by the signed in user`() = runTest {
         dao.upsertAll(
             listOf(
-                RemoteMessage("a", "chat", "me", "mine", 1L).toEntity(),
-                RemoteMessage("b", "chat", "them", "theirs", 2L).toEntity(),
+                serverMessage("a", second = 1, senderId = "me", text = "mine").toEntity(),
+                serverMessage("b", second = 2, senderId = "them", text = "theirs").toEntity(),
             ),
         )
 
-        repository.messages("chat").test {
-            val messages = awaitItem()
-            assertThat(messages.map { it.isOutgoing }).isEqualTo(listOf(true, false))
-            assertThat(messages.map { it.text }).isEqualTo(listOf("mine", "theirs"))
-        }
+        val messages = repository.messages("chat").asSnapshot()
+
+        assertThat(messages.map { it.text }).isEqualTo(listOf("theirs", "mine"))
+        assertThat(messages.map { it.isOutgoing }).isEqualTo(listOf(false, true))
     }
 
     @Test

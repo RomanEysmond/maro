@@ -52,7 +52,10 @@ internal class FirestoreChatRemoteDataSource(
         val registration = query(uid).addSnapshotListener { snapshot, error ->
             when {
                 error != null -> trySend(Result.Error(error.toNetworkError()))
-                snapshot != null -> trySend(Result.Success(snapshot.documents.mapNotNull { it.toChat(uid) }))
+                // Only the server's answer may replace Room: offline, the first snapshot comes from the empty
+                // memory cache, and taken as the full list it would delete every cached chat.
+                snapshot != null && !snapshot.metadata.isFromCache ->
+                    trySend(Result.Success(snapshot.documents.mapNotNull { it.toChat(uid) }))
             }
         }
         awaitClose { registration.remove() }

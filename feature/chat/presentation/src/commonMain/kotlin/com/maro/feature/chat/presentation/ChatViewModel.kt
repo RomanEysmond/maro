@@ -2,11 +2,16 @@ package com.maro.feature.chat.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.maro.core.domain.util.Result
 import com.maro.core.presentation.util.toUiText
+import com.maro.feature.chat.domain.ChatSyncStatus
+import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageRepository
 import com.maro.feature.chat.domain.MessageRules
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -26,21 +31,18 @@ class ChatViewModel(
     private val _events = Channel<ChatEvent>()
     val events = _events.receiveAsFlow()
 
+    /** Newest first, straight from Room; older pages are fetched as the list is scrolled up. */
+    val messages: Flow<PagingData<Message>> = repository.messages(chatId).cachedIn(viewModelScope)
+
     init {
         // The screen only ever reads Room; the server feeds Room through `syncMessages` below.
         repository.chatHeader(chatId)
             .onEach { header -> _state.update { it.copy(header = header) } }
             .launchIn(viewModelScope)
-        repository.messages(chatId)
-            .onEach { messages -> _state.update { it.copy(messages = messages) } }
+        // Runs until the screen is left; it only completes early after a permanent failure.
+        repository.syncMessages(chatId)
+            .onEach { status -> _state.update { it.with(status) } }
             .launchIn(viewModelScope)
-        viewModelScope.launch {
-            // Runs until the screen is left; it only returns early on a permanent failure.
-            val result = repository.syncMessages(chatId)
-            if (result is Result.Error) {
-                _state.update { it.copy(error = result.error.toUiText()) }
-            }
-        }
     }
 
     fun onAction(action: ChatAction) {
@@ -64,5 +66,12 @@ class ChatViewModel(
             // Only reachable for input the UI already rules out; keep the text rather than lose it.
             if (result is Result.Error) _state.update { it.copy(input = text) }
         }
+    }
+
+    private fun ChatState.with(status: ChatSyncStatus): ChatState = when (status) {
+        ChatSyncStatus.CatchingUp -> copy(connection = ChatConnection.UPDATING)
+        ChatSyncStatus.WaitingForNetwork -> copy(connection = ChatConnection.WAITING_FOR_NETWORK)
+        ChatSyncStatus.Live -> copy(connection = null, isCaughtUp = true)
+        is ChatSyncStatus.Failed -> copy(connection = null, error = status.error.toUiText())
     }
 }
