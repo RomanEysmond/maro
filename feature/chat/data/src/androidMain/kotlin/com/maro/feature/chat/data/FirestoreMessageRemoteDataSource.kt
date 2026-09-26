@@ -1,11 +1,14 @@
 package com.maro.feature.chat.data
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.DocumentSnapshot.ServerTimestampBehavior
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import com.maro.core.data.await
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
@@ -61,27 +64,81 @@ internal class FirestoreMessageRemoteDataSource(
         }
     }
 
-    override fun observeMessages(chatId: String): Flow<Result<List<RemoteMessage>, DataError.Network>> = callbackFlow {
-        val registration = firestore.collection(CHATS).document(chatId).collection(MESSAGES)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(PAGE_SIZE)
+    override suspend fun fetchLatest(chatId: String, limit: Int): Result<List<RemoteMessage>, DataError.Network> =
+        fetch(chatId, messages(chatId).newestFirst().limit(limit.toLong()))
+
+    override suspend fun fetchNewer(
+        chatId: String,
+        after: MessageCursor?,
+        limit: Int,
+    ): Result<List<RemoteMessage>, DataError.Network> =
+        fetch(chatId, messages(chatId).oldestFirst().startAfterOrAll(after).limit(limit.toLong()))
+
+    override suspend fun fetchOlder(
+        chatId: String,
+        before: MessageCursor,
+        limit: Int,
+    ): Result<List<RemoteMessage>, DataError.Network> =
+        fetch(chatId, messages(chatId).newestFirst().startAfter(*before.toFieldValues()).limit(limit.toLong()))
+
+    override fun observeNewer(
+        chatId: String,
+        after: MessageCursor?,
+    ): Flow<Result<List<RemoteMessage>, DataError.Network>> = callbackFlow {
+        val registration = messages(chatId).oldestFirst().startAfterOrAll(after)
             .addSnapshotListener { snapshot, error ->
                 when {
                     error != null -> trySend(Result.Error(error.toNetworkError()))
-                    snapshot != null -> trySend(Result.Success(snapshot.documents.mapNotNull { it.toMessage(chatId) }))
+                    // Server snapshots only, like every other read here: the cache is not the source of truth.
+                    snapshot != null && !snapshot.metadata.isFromCache ->
+                        trySend(Result.Success(snapshot.documents.mapNotNull { it.toMessage(chatId) }))
                 }
             }
         awaitClose { registration.remove() }
     }
 
-    private fun DocumentSnapshot.toMessage(chatId: String): RemoteMessage? = RemoteMessage(
-        id = id,
-        chatId = chatId,
-        senderId = getString("senderId") ?: return null,
-        text = getString("text") ?: return null,
-        // ESTIMATE: a timestamp the server has not filled in yet reads as "now" instead of null.
-        createdAt = getTimestamp("createdAt", ServerTimestampBehavior.ESTIMATE)?.toDate()?.time ?: return null,
+    private suspend fun fetch(chatId: String, query: Query): Result<List<RemoteMessage>, DataError.Network> =
+        try {
+            // Source.SERVER: offline has to be a failure, not an empty page from the (memory-only) cache —
+            // an empty page would be taken for "no more messages" and end the paging for good.
+            val documents = query.get(Source.SERVER).await().documents
+            Result.Success(documents.mapNotNull { it.toMessage(chatId) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.Error(e.toNetworkError())
+        }
+
+    private fun messages(chatId: String): Query =
+        firestore.collection(CHATS).document(chatId).collection(MESSAGES)
+
+    // The id breaks ties between messages with the same timestamp, so a cursor is an exact position.
+    private fun Query.oldestFirst(): Query =
+        orderBy(FIELD_CREATED_AT, Query.Direction.ASCENDING).orderBy(FieldPath.documentId(), Query.Direction.ASCENDING)
+
+    private fun Query.newestFirst(): Query =
+        orderBy(FIELD_CREATED_AT, Query.Direction.DESCENDING).orderBy(FieldPath.documentId(), Query.Direction.DESCENDING)
+
+    private fun Query.startAfterOrAll(cursor: MessageCursor?): Query =
+        if (cursor == null) this else startAfter(*cursor.toFieldValues())
+
+    private fun MessageCursor.toFieldValues(): Array<Any> = arrayOf(
+        Timestamp(createdAtMicros / MICROS_PER_SECOND, ((createdAtMicros % MICROS_PER_SECOND) * NANOS_PER_MICRO).toInt()),
+        id,
     )
+
+    private fun DocumentSnapshot.toMessage(chatId: String): RemoteMessage? {
+        // Only real server timestamps: the messages are written in transactions, so there are no local
+        // estimates to see here, and a guessed time must never become a cursor.
+        val createdAt = getTimestamp(FIELD_CREATED_AT, ServerTimestampBehavior.NONE) ?: return null
+        return RemoteMessage(
+            id = id,
+            chatId = chatId,
+            senderId = getString("senderId") ?: return null,
+            text = getString("text") ?: return null,
+            createdAtMicros = createdAt.seconds * MICROS_PER_SECOND + createdAt.nanoseconds / NANOS_PER_MICRO,
+        )
+    }
 
     private fun Exception.toNetworkError(): DataError.Network {
         if (this !is FirebaseFirestoreException) return DataError.Network.UNKNOWN
@@ -99,8 +156,8 @@ internal class FirestoreMessageRemoteDataSource(
     private companion object {
         const val CHATS = "chats"
         const val MESSAGES = "messages"
-
-        // Paging arrives with stage 5; until then the screen shows the latest page.
-        const val PAGE_SIZE = 50L
+        const val FIELD_CREATED_AT = "createdAt"
+        const val MICROS_PER_SECOND = 1_000_000L
+        const val NANOS_PER_MICRO = 1_000
     }
 }

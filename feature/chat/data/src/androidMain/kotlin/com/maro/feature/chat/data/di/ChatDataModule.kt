@@ -14,5 +14,5 @@ val chatDataModule = module {
     single<MessageRemoteDataSource> { FirestoreMessageRemoteDataSource(get()) }
     single<OutboxScheduler> { WorkManagerOutboxScheduler(androidContext()) }
     // A singleton: the WorkManager worker resolves the same instance, so both share one outbox lock.
-    single<MessageRepository> { DefaultMessageRepository(get(), get(), get(), get(), get()) }
+    single<MessageRepository> { DefaultMessageRepository(get(), get(), get(), get(), get(), get()) }
 }

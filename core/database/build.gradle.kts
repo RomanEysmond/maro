@@ -13,6 +13,9 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:domain"))
             api(libs.androidx.room.runtime)
+            // MessageDao hands out a PagingSource; paging-common is pinned to the version the UI uses.
+            api(libs.androidx.room.paging)
+            api(libs.androidx.paging.common)
             implementation(libs.androidx.sqlite.bundled)
         }
         androidMain.dependencies {

@@ -10,6 +10,9 @@ kotlin {
             implementation(project(":core:database"))
             implementation(project(":feature:chat:domain"))
         }
+        commonTest.dependencies {
+            implementation(libs.androidx.paging.testing)
+        }
         // Firebase and WorkManager are Android-only for now; iOS gets its own implementations of the same interfaces later.
         androidMain.dependencies {
             implementation(project.dependencies.platform(libs.firebase.bom))

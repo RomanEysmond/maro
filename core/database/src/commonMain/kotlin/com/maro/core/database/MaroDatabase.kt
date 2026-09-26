@@ -10,13 +10,14 @@ import com.maro.core.database.chat.ChatDao
 import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
+import com.maro.core.database.message.MessageSyncEntity
 import kotlinx.coroutines.Dispatchers
 
 @Database(
-    entities = [ChatEntity::class, MessageEntity::class],
-    version = 2,
+    entities = [ChatEntity::class, MessageEntity::class, MessageSyncEntity::class],
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 @ConstructedBy(MaroDatabaseConstructor::class)
 abstract class MaroDatabase : RoomDatabase() {

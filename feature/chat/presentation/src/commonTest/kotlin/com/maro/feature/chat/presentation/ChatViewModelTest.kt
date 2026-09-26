@@ -10,6 +10,7 @@ import assertk.assertions.isTrue
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatSyncStatus
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageRules
 import com.maro.feature.chat.domain.MessageStatus
@@ -19,6 +20,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -29,11 +31,14 @@ class ChatViewModelTest {
 
     private lateinit var repository: FakeMessageRepository
 
+    // One scheduler for Main (viewModelScope, where the paging flow is cached) and for runTest.
+    private val dispatcher = UnconfinedTestDispatcher()
+
     private val message = Message("m1", "chat", "me", "Привет", 1L, MessageStatus.SENT, isOutgoing = true)
 
     @BeforeTest
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(dispatcher)
         repository = FakeMessageRepository()
     }
 
@@ -45,15 +50,33 @@ class ChatViewModelTest {
     private fun viewModel() = ChatViewModel("chat", repository)
 
     @Test
-    fun `the header and the messages come from the repository and follow its updates`() {
+    fun `the header and the messages come from the repository`() = runTest(dispatcher) {
         repository.headerFlow.value = ChatHeader("Иван Иванов", "ИИ")
+        repository.messagesList = listOf(message)
         val viewModel = viewModel()
 
         assertThat(viewModel.state.value.header).isEqualTo(ChatHeader("Иван Иванов", "ИИ"))
-        assertThat(viewModel.state.value.messages).isEqualTo(emptyList())
+        // The pages themselves are checked in the data layer; here: the right chat, cached and delivered.
+        assertThat(viewModel.messages.first()).isNotNull()
+        assertThat(repository.messagesRequestedFor).isEqualTo(listOf("chat"))
+    }
 
-        repository.messagesFlow.value = listOf(message)
-        assertThat(viewModel.state.value.messages).isEqualTo(listOf(message))
+    @Test
+    fun `the top bar follows the sync`() {
+        val viewModel = viewModel()
+        assertThat(viewModel.state.value.connection).isEqualTo(ChatConnection.UPDATING)
+        assertThat(viewModel.state.value.isCaughtUp).isFalse()
+
+        repository.syncStatus.value = ChatSyncStatus.WaitingForNetwork
+        assertThat(viewModel.state.value.connection).isEqualTo(ChatConnection.WAITING_FOR_NETWORK)
+
+        repository.syncStatus.value = ChatSyncStatus.Live
+        assertThat(viewModel.state.value.connection).isNull()
+        assertThat(viewModel.state.value.isCaughtUp).isTrue()
+
+        // Once caught up, a lost connection does not make the chat look unsynced again.
+        repository.syncStatus.value = ChatSyncStatus.WaitingForNetwork
+        assertThat(viewModel.state.value.isCaughtUp).isTrue()
     }
 
     @Test
@@ -111,7 +134,7 @@ class ChatViewModelTest {
 
     @Test
     fun `a permanent sync failure is shown`() {
-        repository.syncResult = Result.Error(DataError.Network.FORBIDDEN)
+        repository.syncStatus.value = ChatSyncStatus.Failed(DataError.Network.FORBIDDEN)
 
         val viewModel = viewModel()
 
