@@ -35,6 +35,14 @@ sealed interface ChatSyncStatus {
     data class Failed(val error: DataError.Network) : ChatSyncStatus
 }
 
+/** What a notification about a new message shows; built from Room (the push itself carries ids only). */
+data class IncomingMessage(
+    val chatId: String,
+    val messageId: String,
+    val senderName: String,
+    val text: String,
+)
+
 /** Paging needs a Throwable to report a failed page; this one carries the typed error for the UI. */
 class LoadMessagesException(val error: DataError.Network) : Exception("Loading older messages failed: $error")
 
@@ -68,6 +76,15 @@ interface MessageRepository {
      * (and whenever the network comes back), catches that chat up. Runs until cancelled.
      */
     suspend fun keepAllChatsInSync()
+
+    /** One catch-up of [chatId] with the server (see [syncMessages]); used when a push says there is something new. */
+    suspend fun catchUp(chatId: String): EmptyResult<DataError.Network>
+
+    /** A message someone else sent, as cached in Room; `null` when it is not there (yet) or is the user's own. */
+    suspend fun incomingMessage(chatId: String, messageId: String): IncomingMessage?
+
+    /** The chat is open on screen right now (its [syncMessages] is being collected). */
+    fun isChatOpen(chatId: String): Boolean
 
     /** Sends everything that is SENDING, oldest first. [attempt] counts the previous background runs. */
     suspend fun flushOutbox(attempt: Int): OutboxResult

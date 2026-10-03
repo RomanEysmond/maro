@@ -12,6 +12,8 @@ import com.maro.feature.chatlist.data.di.chatListDataModule
 import com.maro.feature.chatlist.presentation.di.chatListPresentationModule
 import com.maro.feature.profile.data.di.profileDataModule
 import com.maro.feature.profile.presentation.di.profilePresentationModule
+import com.maro.notifications.MessageNotifications
+import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
@@ -35,5 +37,7 @@ class MaroApplication : Application() {
                 profilePresentationModule,
             )
         }
+        // Before any push can arrive: a notification posted to a missing channel is dropped.
+        get<MessageNotifications>().createChannel()
     }
 }

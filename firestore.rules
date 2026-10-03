@@ -59,6 +59,19 @@ service cloud.firestore {
         && isUsernameClaimed(request.resource.data)
         && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
+
+      // Where this user's pushes go: one document per app install (the id is the Firebase installation id).
+      // Only the owner reads or writes it; the push server reads it with the Admin SDK, which bypasses these rules.
+      match /devices/{deviceId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['token', 'platform', 'updatedAt'])
+          && request.resource.data.token is string
+          && request.resource.data.token.size() > 0 && request.resource.data.token.size() <= 4096
+          && request.resource.data.platform in ['android', 'ios']
+          && request.resource.data.updatedAt == request.time;
+      }
     }
 
     // Makes usernames unique (the document id is the username) and is what "find by @username" reads.

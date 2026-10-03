@@ -1,5 +1,10 @@
 package com.maro.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -10,6 +15,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import com.maro.MainViewModel
 import com.maro.feature.auth.presentation.AuthGraphRoute
 import com.maro.feature.auth.presentation.authGraph
@@ -22,6 +29,8 @@ import com.maro.feature.profile.presentation.ProfileRoute
 import com.maro.feature.profile.presentation.ProfileSetupRoute
 import com.maro.feature.profile.presentation.SettingsRoute
 import com.maro.feature.profile.presentation.profileGraph
+import com.maro.notifications.MessageNotifications
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -30,10 +39,28 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 @Composable
 fun NavigationRoot(
+    openChatRequest: String?,
+    onOpenChatRequestHandled: () -> Unit,
     navController: NavHostController = rememberNavController(),
     mainViewModel: MainViewModel = koinViewModel(),
+    notifications: MessageNotifications = koinInject(),
 ) {
     val isLoggedIn by mainViewModel.isLoggedIn.collectAsState()
+
+    NotificationPermissionRequest(isLoggedIn = isLoggedIn)
+
+    val openChat: (String) -> Unit = { chatId ->
+        // Opening the chat makes its notification obsolete, however the chat was opened.
+        notifications.cancel(chatId)
+        navController.navigate(ChatRoute(chatId)) { launchSingleTop = true }
+    }
+
+    // A tapped message notification. Ignored when signed out: the login flow comes first.
+    LaunchedEffect(openChatRequest, isLoggedIn) {
+        val chatId = openChatRequest ?: return@LaunchedEffect
+        if (isLoggedIn) openChat(chatId)
+        onOpenChatRequestHandled()
+    }
     // The session is known synchronously, so the start destination is chosen once and there is no splash screen.
     val startDestination = remember { if (mainViewModel.isLoggedIn.value) ChatListGraphRoute else AuthGraphRoute }
 
@@ -64,7 +91,7 @@ fun NavigationRoot(
         )
         chatListGraph(
             navController = navController,
-            onOpenChat = { chatId -> navController.navigate(ChatRoute(chatId)) },
+            onOpenChat = openChat,
             onOpenProfile = { navController.navigate(ProfileRoute) },
             onOpenSettings = { navController.navigate(SettingsRoute) },
             onOpenHelp = { navController.navigate(HelpRoute) },
@@ -79,5 +106,20 @@ fun NavigationRoot(
                 }
             },
         )
+    }
+}
+
+/** Android 13+: message notifications need a runtime permission; asked once the user is signed in. */
+@Composable
+private fun NotificationPermissionRequest(isLoggedIn: Boolean) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val context = LocalContext.current
+    // The answer needs no handling: without the permission the notifications are simply not shown.
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(isLoggedIn) {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        // After two refusals Android stops showing the dialog by itself, so asking on each sign-in does not nag.
+        if (isLoggedIn && !granted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }

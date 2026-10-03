@@ -12,6 +12,7 @@ import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
+import com.maro.feature.chat.data.push.MessagePushNotifier
 import com.maro.feature.chat.domain.OutboxScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -139,6 +140,16 @@ class FakeOutboxScheduler : OutboxScheduler {
 
     override fun schedule() {
         scheduleCalls++
+    }
+}
+
+class FakePushNotifier : MessagePushNotifier {
+    val notified = mutableListOf<Pair<String, String>>()
+    var result: EmptyResult<DataError.Network> = Result.Success(Unit)
+
+    override suspend fun messageSent(chatId: String, messageId: String): EmptyResult<DataError.Network> {
+        notified += chatId to messageId
+        return result
     }
 }
 
