@@ -17,8 +17,18 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
+        debug {
+            // The push server on the development machine, as the emulator sees it (see server/README.md).
+            buildConfigField("String", "PUSH_SERVER_URL", "\"http://10.0.2.2:8080\"")
+        }
         release {
+            // No hosted push server yet: pushes are off, messages still arrive through sync.
+            buildConfigField("String", "PUSH_SERVER_URL", "\"\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -30,6 +40,7 @@ android {
 
 dependencies {
     // Shared
+    implementation(project(":core:domain"))
     implementation(project(":core:design-system"))
     implementation(project(":core:data"))
     implementation(project(":core:database"))
@@ -51,6 +62,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(libs.koin.core)
     implementation(libs.koin.android)
+    implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.android)

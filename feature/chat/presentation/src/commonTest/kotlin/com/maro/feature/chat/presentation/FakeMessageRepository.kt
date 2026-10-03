@@ -1,10 +1,12 @@
 package com.maro.feature.chat.presentation
 
 import androidx.paging.PagingData
+import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatSyncStatus
+import com.maro.feature.chat.domain.IncomingMessage
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageRepository
 import com.maro.feature.chat.domain.OutboxResult
@@ -44,6 +46,12 @@ class FakeMessageRepository : MessageRepository {
     override fun syncMessages(chatId: String): Flow<ChatSyncStatus> = syncStatus
 
     override suspend fun keepAllChatsInSync() = Unit
+
+    override suspend fun catchUp(chatId: String): EmptyResult<DataError.Network> = Result.Success(Unit)
+
+    override suspend fun incomingMessage(chatId: String, messageId: String): IncomingMessage? = null
+
+    override fun isChatOpen(chatId: String): Boolean = false
 
     override suspend fun flushOutbox(attempt: Int): OutboxResult = OutboxResult.DONE
 }

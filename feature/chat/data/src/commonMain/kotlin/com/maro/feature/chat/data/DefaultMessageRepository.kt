@@ -13,8 +13,10 @@ import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
+import com.maro.feature.chat.data.push.MessagePushNotifier
 import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatSyncStatus
+import com.maro.feature.chat.domain.IncomingMessage
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageRepository
 import com.maro.feature.chat.domain.MessageRules
@@ -29,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -46,6 +49,7 @@ class DefaultMessageRepository(
     private val scheduler: OutboxScheduler,
     private val currentUser: CurrentUserProvider,
     connectivity: ConnectivityObserver,
+    private val pushNotifier: MessagePushNotifier,
     // Same story as DefaultChatRepository: no lifecycle owner yet, so the process is the scope by default;
     // overridable so tests can drive the immediate send with a TestScope.
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -113,10 +117,25 @@ class DefaultMessageRepository(
 
     override suspend fun keepAllChatsInSync() = synchronizer.keepAllChatsInSync()
 
+    override suspend fun catchUp(chatId: String): EmptyResult<DataError.Network> = synchronizer.catchUp(chatId)
+
+    override suspend fun incomingMessage(chatId: String, messageId: String): IncomingMessage? {
+        val message = messageDao.getById(messageId) ?: return null
+        if (message.chatId != chatId || message.senderId == currentUser.userId) return null
+        val sender = chatHeader(chatId).first()?.participantName.orEmpty()
+        return IncomingMessage(chatId = chatId, messageId = messageId, senderName = sender, text = message.text)
+    }
+
+    override fun isChatOpen(chatId: String): Boolean = synchronizer.isChatOpen(chatId)
+
     override suspend fun flushOutbox(attempt: Int): OutboxResult = outboxMutex.withLock {
         for (message in messageDao.getByStatus(MessageStatus.SENDING.name)) {
             when (val result = remote.send(message.toRemote())) {
-                is Result.Success -> messageDao.updateStatus(message.id, MessageStatus.SENT.name)
+                is Result.Success -> {
+                    messageDao.updateStatus(message.id, MessageStatus.SENT.name)
+                    // Fire and forget: the message is delivered either way, the push only makes it arrive sooner.
+                    scope.launch { pushNotifier.messageSent(message.chatId, message.id) }
+                }
                 is Result.Error -> when {
                     result.error.isPermanent() -> messageDao.updateStatus(message.id, MessageStatus.FAILED.name)
                     // No network is not the message's fault: keep waiting, however long it takes.

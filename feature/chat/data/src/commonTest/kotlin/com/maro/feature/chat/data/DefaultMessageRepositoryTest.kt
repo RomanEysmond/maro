@@ -11,6 +11,7 @@ import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatSyncStatus
+import com.maro.feature.chat.domain.IncomingMessage
 import com.maro.feature.chat.domain.MessageRules
 import com.maro.feature.chat.domain.MessageStatus
 import com.maro.feature.chat.domain.OutboxResult
@@ -31,6 +32,7 @@ class DefaultMessageRepositoryTest {
     private val remote = FakeMessageRemoteDataSource()
     private val scheduler = FakeOutboxScheduler()
     private val user = FakeCurrentUserProvider("me")
+    private val pushNotifier = FakePushNotifier()
     private var nextId = 0
     private var clock = 1_000L
 
@@ -41,6 +43,7 @@ class DefaultMessageRepositoryTest {
         scheduler = scheduler,
         currentUser = user,
         connectivity = FakeConnectivityObserver(),
+        pushNotifier = pushNotifier,
         // Runs the immediate send eagerly, on the test thread, so the outcome is there when sendMessage returns.
         scope = CoroutineScope(UnconfinedTestDispatcher()),
         newId = { "id-${nextId++}" },
@@ -185,6 +188,60 @@ class DefaultMessageRepositoryTest {
 
         assertThat(messages.map { it.text }).isEqualTo(listOf("theirs", "mine"))
         assertThat(messages.map { it.isOutgoing }).isEqualTo(listOf(false, true))
+    }
+
+    @Test
+    fun `the recipients are notified once a message reached the server, not before`() = runTest {
+        remote.sendResult = Result.Error(DataError.Network.NO_INTERNET)
+        repository.sendMessage("chat", "hi")
+        assertThat(pushNotifier.notified).isEqualTo(emptyList())
+
+        remote.sendResult = Result.Success(Unit)
+        repository.flushOutbox(attempt = 1)
+
+        assertThat(pushNotifier.notified).isEqualTo(listOf("chat" to "id-0"))
+    }
+
+    @Test
+    fun `a failing push server does not affect the message`() = runTest {
+        pushNotifier.result = Result.Error(DataError.Network.SERVER_ERROR)
+
+        repository.sendMessage("chat", "hi")
+
+        assertThat(statusOf("id-0")).isEqualTo(MessageStatus.SENT.name)
+    }
+
+    @Test
+    fun `an incoming message is described by its text and the other participant, own messages are not`() = runTest {
+        chatDao.chats.value = listOf(
+            ChatEntity("chat", "direct", "u", "Анна", "Петрова", null, null, null, null, 0L),
+        )
+        dao.upsertAll(
+            listOf(
+                serverMessage("in", second = 1, senderId = "them", text = "Привет").toEntity(),
+                serverMessage("out", second = 2, senderId = "me", text = "Мой").toEntity(),
+            ),
+        )
+
+        assertThat(repository.incomingMessage("chat", "in"))
+            .isEqualTo(IncomingMessage("chat", "in", "Анна Петрова", "Привет"))
+        assertThat(repository.incomingMessage("chat", "out")).isNull()
+        assertThat(repository.incomingMessage("chat", "missing")).isNull()
+        assertThat(repository.incomingMessage("other", "in")).isNull()
+    }
+
+    @Test
+    fun `a chat counts as open only while its sync is collected`() = runTest {
+        assertThat(repository.isChatOpen("chat")).isEqualTo(false)
+
+        repository.syncMessages("chat").test {
+            assertThat(awaitItem()).isEqualTo(ChatSyncStatus.CatchingUp)
+            assertThat(repository.isChatOpen("chat")).isEqualTo(true)
+            assertThat(repository.isChatOpen("other")).isEqualTo(false)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertThat(repository.isChatOpen("chat")).isEqualTo(false)
     }
 
     @Test

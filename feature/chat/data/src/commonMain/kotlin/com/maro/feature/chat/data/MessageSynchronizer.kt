@@ -11,7 +11,10 @@ import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatSyncStatus
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
@@ -38,6 +41,11 @@ internal class MessageSynchronizer(
     // "the latest page" at different moments, and those two pages need not touch each other.
     private val locksGuard = Mutex()
     private val chatLocks = mutableMapOf<String, Mutex>()
+
+    // Chats whose screen is collecting syncMessages right now, with how many collectors each.
+    private val openChats = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    fun isChatOpen(chatId: String): Boolean = (openChats.value[chatId] ?: 0) > 0
 
     private suspend fun <T> withChatLock(chatId: String, block: suspend () -> T): T {
         val lock = locksGuard.withLock { chatLocks.getOrPut(chatId) { Mutex() } }
@@ -94,6 +102,18 @@ internal class MessageSynchronizer(
 
     /** See [com.maro.feature.chat.domain.MessageRepository.syncMessages]. */
     fun syncMessages(chatId: String): Flow<ChatSyncStatus> = channelFlow {
+        openChats.update { it + (chatId to (it[chatId] ?: 0) + 1) }
+        try {
+            syncOpenChat(chatId)
+        } finally {
+            openChats.update { chats ->
+                val left = (chats[chatId] ?: 1) - 1
+                if (left > 0) chats + (chatId to left) else chats - chatId
+            }
+        }
+    }
+
+    private suspend fun ProducerScope<ChatSyncStatus>.syncOpenChat(chatId: String) {
         while (true) {
             send(ChatSyncStatus.CatchingUp)
             val result = catchUp(chatId)
@@ -101,7 +121,7 @@ internal class MessageSynchronizer(
             val error = (result as Result.Error).error
             if (!error.isConnectivity()) {
                 send(ChatSyncStatus.Failed(error))
-                return@channelFlow
+                return
             }
             send(ChatSyncStatus.WaitingForNetwork)
             connectivity.isConnected.first { it }

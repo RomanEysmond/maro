@@ -48,7 +48,7 @@
 :app                      Application + Koin, MainActivity, NavigationRoot (единственный Android-only модуль)
 build-logic               convention plugins: maro.android.application, maro.kmp.library, maro.kmp.compose, maro.kmp.feature
 :core:domain              Result, Error, DataError, профиль пользователя (без Compose и Android)
-:core:data                Firebase-объекты (androidMain), Task.await(); позже Ktor-клиент, safeCall
+:core:data                Firebase-объекты (androidMain), Task.await(), HttpClientFactory (Ktor), FCM-регистрация, ConnectivityObserver
 :core:database            Room 3 (KMP): MaroDatabase, чаты и сообщения; источник данных для UI (этапы 3–4)
 :core:presentation        UiText, ObserveAsEvents, DataError.toUiText() (+ строки ошибок)
 :core:design-system       MaroTheme (светлая/тёмная), InitialsAvatar, общие ресурсы (logo.png)
@@ -56,6 +56,7 @@ build-logic               convention plugins: maro.android.application, maro.kmp
 :feature:chatlist:{domain,data,presentation}
 :feature:chat:{domain,data,presentation}
 :feature:profile:{domain,data,presentation}
+server/                   мини-сервер пушей (Ktor + Firebase Admin SDK): отдельная Gradle-сборка, общий каталог версий
 ```
 Правила зависимостей: `presentation` → `domain` своей фичи + `core:*`; `data` → `domain` своей фичи + `core:domain`/`core:data`/`core:database`;
 `domain` → только `core:domain`; фичи друг от друга не зависят (общее выносится в `core:domain` / `core:presentation`);
@@ -158,12 +159,39 @@ build-logic               convention plugins: maro.android.application, maro.kmp
   одновременно (второй аккаунт на этом этапе не использовался), очень большая «дыра» (сотни сообщений — читаются все, по одному
   чтению Firestore на сообщение; лимит Spark — 50 тыс. чтений в сутки).
 
+- **Этап 5б** (ветка `stage-5b-push`, не закоммичен; сборка, 127 юнит-тестов приложения и 10 тестов сервера зелёные; на двух
+  эмуляторах (Ivan — Pixel_9, Anna — Pixel_3a) проверены: пуш при свёрнутом приложении (уведомление «Anna / push2»), тап по
+  уведомлению открывает этот чат, при открытом чате уведомления нет, пуш будит убитый процесс (`am kill`) и уведомление
+  приходит; правила для `users/{uid}/devices` опубликованы): новые зависимости Ktor 3.6 (клиент: `ktor-client-core`,
+  движок `ktor-client-android`, content-negotiation + kotlinx-json, в тестах `ktor-client-mock`; сервер: `ktor-server-netty`,
+  content-negotiation, `ktor-server-test-host`), `firebase-admin` 9.11, logback 1.6, `firebase-installations` (из BOM).
+  Движок OkHttp не подошёл: Ktor 3.6 тянет OkHttp 5.5, которому нужен compileSdk 37 (новый AGP). **Сервер** — `server/`,
+  отдельная Gradle-сборка (Studio его не синхронизирует), читает тот же `gradle/libs.versions.toml`; запуск
+  `./gradlew -p server run` с `GOOGLE_APPLICATION_CREDENTIALS` = путь к ключу сервисного аккаунта (файл вне репозитория,
+  см. `server/README.md`), тесты `./gradlew -p server test`. `POST /v1/notify {chatId, messageId}` с Firebase ID-токеном:
+  `NotifyService` проверяет, что вызывающий — участник чата и автор сообщения (Admin SDK обходит Security Rules), берёт
+  токены из `users/{uid}/devices/*` и шлёт FCM data-пуш `{type, chatId, messageId}` с высоким приоритетом; мёртвые токены
+  (UNREGISTERED) удаляет; id проверяются регуляркой (без `/`); в лог — только id и коды ошибок. **Клиент:** `PushRegistrar`
+  (`:core:domain`) → `FcmPushRegistrar` (`:core:data`): `users/{uid}/devices/{installationId}` = `{token, platform, updatedAt}`,
+  регистрация при каждом старте в сессии (повтор раз в 30 с, пока не выйдет — сразу после загрузки сети часто нет) и в
+  `onNewToken`; при выходе устройство удаляется и токен сбрасывается (с таймаутом 3 с, чтобы выход офлайн не завис).
+  `MessagePushNotifier` (`feature:chat:data`, Ktor, `IdTokenProvider` из `:core:domain`) зовётся outbox'ом после успешной
+  отправки, «выстрелил и забыл» — сообщение доставлено в любом случае. Адрес сервера — `BuildConfig.PUSH_SERVER_URL`
+  (debug: `http://10.0.2.2:8080`, HTTP разрешён только в debug и только для `10.0.2.2` через `network_security_config`;
+  release: пусто = пуши выключены). `:app`: `MaroMessagingService` (data-пуш → `catchUp` чата до 8 с → уведомление из Room:
+  имя собеседника и текст; не показывается, если приложение на экране и этот чат открыт — `MessageRepository.isChatOpen`
+  считает подписчиков `syncMessages`), `MessageNotifications` (канал «Сообщения», одно уведомление на чат с тегом `chatId`,
+  тап → `MainActivity` singleTop + `EXTRA_CHAT_ID` → `NavigationRoot` открывает `ChatRoute`, уведомление чата снимается при
+  его открытии), запрос `POST_NOTIFICATIONS` после входа. Не проверено на устройстве: выход из аккаунта с удалением
+  устройства, ротация токена (`onNewToken`), удаление мёртвых токенов сервером (покрыто тестами), release-сборка без сервера.
+
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
 lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0,
 Room 3.0.2 (`androidx.room3`, + `room3-paging`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2,
-Paging 3.5.1 (`paging-common`/`paging-compose` — KMP; `paging-compose` 3.5 требует Compose 1.9).
+Paging 3.5.1 (`paging-common`/`paging-compose` — KMP; `paging-compose` 3.5 требует Compose 1.9), Ktor 3.6.0 (клиент с
+движком Android; сервер — Netty), `firebase-admin` 9.11.0, logback 1.6.4 (только сервер).
 Convention plugins в `build-logic` — обычные Kotlin-классы (не `kotlin-dsl`): встроенный Kotlin Gradle 8.x не читает метаданные
 Kotlin 2.3. Версии SDK и библиотек — только в `gradle/libs.versions.toml`. Нужна Android Studio 2025.1.3+ (у владельца Quail 4).
 
@@ -180,10 +208,8 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 3. ✅ Список чатов: Room + Flow, `:core:database`, пустые/ошибочные состояния, Security Rules для чатов.
 4. ✅ Личные сообщения (текст): оптимистичная отправка, статусы, ретраи (WorkManager).
 5. ✅ Курсорная синхронизация, Paging 3 + RemoteMediator, фоновая догрузка.
-5б. Пуши через мини-сервер (без Cloud Functions): `:server` (Ktor + Firebase Admin SDK), `POST /notify {chatId, messageId}`
-   с ID-токеном отправителя; FCM-токены в `users/{uid}/devices/{id}` (правка `firestore.rules`); data-пуш без текста →
-   `catchUp` чата → локальное уведомление; `POST_NOTIFICATIONS`. Нужен ключ сервисного аккаунта (файл вне репозитория,
-   путь через переменную окружения). Решено: сначала сервер локально (эмулятор → `10.0.2.2`), хостинг выбрать к концу 5б.
+5б. ✅ Пуши через мини-сервер (`server/`, Ktor + Firebase Admin SDK) — работает локально; хостинг ещё не выбран
+   (варианты: бесплатный со «сном» вроде Render, VPS ~4–5 €/мес, Cloud Run / Oracle Free с привязкой карты).
 6. Группы, `last_read_message_id`, «печатает…».
 7. Полировка: SQLCipher/Keystore, локализация RU/EN, ktlint/detekt, a11y, R8 для release, `POST_NOTIFICATIONS`, SavedStateHandle там, где нужно.
 8. Медиа (последним; хранилище выбираем к тому времени — Firebase Storage требует Blaze).
@@ -211,7 +237,10 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
   `com.android.kotlin.multiplatform.library`.
 - ktlint/detekt не настроены (detekt может не поддерживать Kotlin 2.3); `lintDebug` для KMP-модулей не гонялся.
 - Ограничение Firebase API-ключа в Google Cloud Console не настроено (необязательно; ключ не секрет, защиту дают Security Rules).
-- Отсутствуют: iOS-приложение, Ktor, DataStore.
+- Отсутствуют: iOS-приложение, DataStore.
+- Пуши: сервер пока только на машине разработчика — release-сборка без пушей (`PUSH_SERVER_URL` пустой); для release
+  нужен хостинг с HTTPS. iOS-пушей нет (нужны APNs, аккаунт Apple Developer и Mac). Если сервер недоступен, вызов
+  `/v1/notify` не повторяется (сообщение всё равно придёт через синхронизацию, просто без уведомления).
 - Время у сообщений и разделители по датам не сделаны: для KMP нужна `kotlinx-datetime` (новая зависимость, согласовать).
 - Выход из аккаунта не чистит Room (чаты и сообщения прошлого пользователя остаются в базе, хотя чужие чаты не показываются:
   список заменяется данными сервера).
