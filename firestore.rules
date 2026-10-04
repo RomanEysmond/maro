@@ -93,7 +93,8 @@ service cloud.firestore {
     match /chats/{chatId} {
       function isValidChat(chat) {
         return chat.keys().hasOnly(
-            ['type', 'participants', 'participantInfo', 'lastMessageText', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt', 'createdAt']
+            ['type', 'participants', 'participantInfo', 'lastMessageText', 'lastMessageSenderId', 'lastMessageAt',
+             'updatedAt', 'createdAt', 'lastRead', 'lastDelivered']
           )
           && chat.keys().hasAll(['type', 'participants', 'participantInfo', 'updatedAt', 'createdAt'])
           && chat.type == 'direct'
@@ -105,7 +106,42 @@ service cloud.firestore {
           && chat.createdAt is timestamp
           && (!('lastMessageText' in chat) || (chat.lastMessageText is string && chat.lastMessageText.size() <= 4000))
           && (!('lastMessageSenderId' in chat) || chat.lastMessageSenderId in chat.participants)
-          && (!('lastMessageAt' in chat) || chat.lastMessageAt is timestamp);
+          && (!('lastMessageAt' in chat) || chat.lastMessageAt is timestamp)
+          && (!('lastRead' in chat) || chat.lastRead is map)
+          && (!('lastDelivered' in chat) || chat.lastDelivered is map);
+      }
+
+      // One participant's mark: the message it points at and that message's time (never in the future).
+      function isValidReceipt(receipt) {
+        return receipt is map
+          && receipt.keys().hasOnly(['messageId', 'at']) && receipt.keys().hasAll(['messageId', 'at'])
+          && receipt.messageId is string && receipt.messageId.size() > 0 && receipt.messageId.size() <= 128
+          && receipt.at is timestamp && receipt.at <= request.time;
+      }
+
+      // In the read / delivered map [field], the caller may change their own entry and nothing else.
+      function onlyOwnReceiptChanged(field) {
+        return !(field in request.resource.data)
+          || (request.resource.data[field].diff(resource.data.get(field, {})).affectedKeys().hasOnly([request.auth.uid])
+              && (request.resource.data[field].get(request.auth.uid, null) == null
+                  || isValidReceipt(request.resource.data[field][request.auth.uid])));
+      }
+
+      // Sending a message: moves lastMessage* and updatedAt, nothing else.
+      function isSendUpdate() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['lastMessageText', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt'])
+          && request.resource.data.lastMessageSenderId == request.auth.uid
+          && request.resource.data.lastMessageAt == request.time
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      // Read / delivered marks (last_read_message_id per participant): only the caller's own entries, and the
+      // list order (updatedAt) stays as it is.
+      function isReceiptUpdate() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastRead', 'lastDelivered'])
+          && onlyOwnReceiptChanged('lastRead')
+          && onlyOwnReceiptChanged('lastDelivered');
       }
 
       // `get` also has to work for a chat that does not exist yet: "create it unless it exists" reads it first,
@@ -117,15 +153,10 @@ service cloud.firestore {
         && isValidChat(request.resource.data)
         && chatId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1]
         && request.resource.data.createdAt == request.time;
-      // Sending a message is the only update: it moves lastMessage* and updatedAt, nothing else.
       allow update: if request.auth != null
         && request.auth.uid in resource.data.participants
         && isValidChat(request.resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['lastMessageText', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt'])
-        && request.resource.data.lastMessageSenderId == request.auth.uid
-        && request.resource.data.lastMessageAt == request.time
-        && request.resource.data.updatedAt == request.time;
+        && (isSendUpdate() || isReceiptUpdate());
       allow delete: if false;
 
       // The document id is the client_id (UUID) the sender generated, which makes sending idempotent.
@@ -142,6 +173,20 @@ service cloud.firestore {
           && request.resource.data.createdAt == request.time
           && request.resource.data.clientId == messageId;
         allow update, delete: if false;
+      }
+
+      // "Typing…": one tiny document per participant, written only by that participant. Ephemeral by design: the
+      // app treats an entry older than a few seconds as stale, so nothing ever needs to clean these up.
+      match /typing/{uid} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(chatPath(chatId)).data.participants;
+        allow create, update: if request.auth != null
+          && request.auth.uid == uid
+          && request.auth.uid in get(chatPath(chatId)).data.participants
+          && request.resource.data.keys().hasOnly(['typing', 'at'])
+          && request.resource.data.typing is bool
+          && request.resource.data.at == request.time;
+        allow delete: if false;
       }
     }
 

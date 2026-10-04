@@ -25,11 +25,13 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.datetime.TimeZone
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatViewModelTest {
 
     private lateinit var repository: FakeMessageRepository
+    private lateinit var typing: FakeTypingRepository
 
     // One scheduler for Main (viewModelScope, where the paging flow is cached) and for runTest.
     private val dispatcher = UnconfinedTestDispatcher()
@@ -40,6 +42,7 @@ class ChatViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         repository = FakeMessageRepository()
+        typing = FakeTypingRepository()
     }
 
     @AfterTest
@@ -47,7 +50,7 @@ class ChatViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = ChatViewModel("chat", repository)
+    private fun viewModel() = ChatViewModel("chat", repository, typing, TimeZone.UTC)
 
     @Test
     fun `the header and the messages come from the repository`() = runTest(dispatcher) {
@@ -57,7 +60,7 @@ class ChatViewModelTest {
 
         assertThat(viewModel.state.value.header).isEqualTo(ChatHeader("Иван Иванов", "ИИ"))
         // The pages themselves are checked in the data layer; here: the right chat, cached and delivered.
-        assertThat(viewModel.messages.first()).isNotNull()
+        assertThat(viewModel.items.first()).isNotNull()
         assertThat(repository.messagesRequestedFor).isEqualTo(listOf("chat"))
     }
 
@@ -164,5 +167,47 @@ class ChatViewModelTest {
 
             assertThat(awaitItem()).isEqualTo(ChatEvent.NavigateBack)
         }
+    }
+
+    @Test
+    fun `the top bar says typing while the other side types`() {
+        val viewModel = viewModel()
+        assertThat(viewModel.state.value.isPeerTyping).isFalse()
+
+        typing.typing.value = setOf("them")
+        assertThat(viewModel.state.value.isPeerTyping).isTrue()
+
+        typing.typing.value = emptySet()
+        assertThat(viewModel.state.value.isPeerTyping).isFalse()
+    }
+
+    @Test
+    fun `typing is reported while there is text and stopped on send`() {
+        val viewModel = viewModel()
+
+        viewModel.onAction(ChatAction.OnInputChange("При"))
+        viewModel.onAction(ChatAction.OnInputChange("   "))
+        viewModel.onAction(ChatAction.OnInputChange("Привет"))
+        viewModel.onAction(ChatAction.OnSendClick)
+
+        assertThat(typing.calls.map { it.second }).isEqualTo(listOf(true, false, true, false))
+    }
+
+    @Test
+    fun `new messages are marked read only while the chat is on screen`() {
+        val viewModel = viewModel()
+
+        repository.newestIncoming.value = "m1"
+        assertThat(repository.markReadCalls).isEqualTo(0)
+
+        viewModel.onAction(ChatAction.OnVisibilityChange(isVisible = true))
+        assertThat(repository.markReadCalls).isEqualTo(1)
+
+        repository.newestIncoming.value = "m2"
+        assertThat(repository.markReadCalls).isEqualTo(2)
+
+        viewModel.onAction(ChatAction.OnVisibilityChange(isVisible = false))
+        repository.newestIncoming.value = "m3"
+        assertThat(repository.markReadCalls).isEqualTo(2)
     }
 }

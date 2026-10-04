@@ -1,5 +1,6 @@
 package com.maro.feature.chatlist.data
 
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
@@ -88,7 +89,20 @@ internal class FirestoreChatRemoteDataSource(
                 )
             },
             updatedAt = getTimestamp(FIELD_UPDATED_AT)?.toDate()?.time ?: 0L,
+            myReadAt = receiptAt(FIELD_LAST_READ) { it == currentUid },
+            // "At least one of the others": the newest mark among everybody but the user (stage 6: groups).
+            peerReadAt = receiptAt(FIELD_LAST_READ) { it != currentUid },
+            peerDeliveredAt = receiptAt(FIELD_LAST_DELIVERED) { it != currentUid },
         )
+    }
+
+    /** The newest `at` of the `lastRead` / `lastDelivered` entries of the participants [whose] picks. */
+    private fun DocumentSnapshot.receiptAt(field: String, whose: (String) -> Boolean): Long? {
+        val receipts = get(field) as? Map<*, *> ?: return null
+        return receipts.entries
+            .filter { (uid, _) -> uid is String && whose(uid) }
+            .mapNotNull { (_, receipt) -> ((receipt as? Map<*, *>)?.get("at") as? Timestamp)?.toDate()?.time }
+            .maxOrNull()
     }
 
     private fun Exception.toNetworkError(): DataError.Network {
@@ -112,5 +126,7 @@ internal class FirestoreChatRemoteDataSource(
         const val FIELD_LAST_MESSAGE_SENDER_ID = "lastMessageSenderId"
         const val FIELD_LAST_MESSAGE_AT = "lastMessageAt"
         const val FIELD_UPDATED_AT = "updatedAt"
+        const val FIELD_LAST_READ = "lastRead"
+        const val FIELD_LAST_DELIVERED = "lastDelivered"
     }
 }

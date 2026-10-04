@@ -20,4 +20,7 @@
     <string name="menu_profile">Профиль</string>
     <string name="menu_settings">Настройки</string>
     <string name="menu_help">Справка</string>
+    <string name="chat_list_receipt_sent">Отправлено</string>
+    <string name="chat_list_receipt_delivered">Доставлено</string>
+    <string name="chat_list_receipt_read">Прочитано</string>
 </resources>

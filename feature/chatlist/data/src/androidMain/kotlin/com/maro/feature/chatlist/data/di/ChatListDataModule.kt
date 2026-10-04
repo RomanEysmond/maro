@@ -14,7 +14,7 @@ import org.koin.dsl.module
 val chatListDataModule = module {
     single<ChatRemoteDataSource> { FirestoreChatRemoteDataSource(get(), get()) }
     // A singleton: it owns the always-on Firestore listener that keeps Room current.
-    single<ChatRepository> { DefaultChatRepository(get(), get()) }
+    single<ChatRepository> { DefaultChatRepository(get(), get(), get()) }
 
     single<NewChatRemoteDataSource> { FirestoreNewChatRemoteDataSource(get()) }
     single<NewChatRepository> { DefaultNewChatRepository(get(), get(), get()) }

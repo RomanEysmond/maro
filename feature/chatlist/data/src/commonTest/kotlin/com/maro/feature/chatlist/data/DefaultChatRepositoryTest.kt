@@ -4,11 +4,15 @@ import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import com.maro.core.database.message.MessageEntity
+import com.maro.core.domain.auth.CurrentUserProvider
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
 import com.maro.feature.chatlist.domain.Chat
 import com.maro.feature.chatlist.domain.ChatParticipant
 import com.maro.feature.chatlist.domain.ChatType
+import com.maro.feature.chatlist.domain.LastMessage
+import com.maro.feature.chatlist.domain.LastMessageReceipt
 import kotlin.test.Test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,7 +32,14 @@ class DefaultChatRepositoryTest {
     private val chatB = chatA.copy(id = "chat-b", updatedAt = 2_000L)
 
     private fun repository(dao: FakeChatDao, remote: FakeChatRemoteDataSource) =
-        DefaultChatRepository(dao, remote, listenerScope = CoroutineScope(UnconfinedTestDispatcher()))
+        DefaultChatRepository(
+            chatDao = dao,
+            remote = remote,
+            currentUser = object : CurrentUserProvider {
+                override val userId: String = "me"
+            },
+            listenerScope = CoroutineScope(UnconfinedTestDispatcher()),
+        )
 
     @Test
     fun `sync upserts the fetched chats into the local cache`() = runTest {
@@ -85,5 +96,54 @@ class DefaultChatRepositoryTest {
         repository.chats.test {
             assertThat(awaitItem()).isEqualTo(listOf(chatB))
         }
+    }
+
+    private fun message(id: String, senderId: String, at: Long) =
+        MessageEntity(id = id, chatId = chatA.id, senderId = senderId, text = id, createdAt = at, status = "SENT")
+
+    @Test
+    fun `unread counts messages from others after the read mark, and a newer local mark survives a sync`() = runTest {
+        val dao = FakeChatDao()
+        val remote = FakeChatRemoteDataSource().apply { fetchResult = Result.Success(listOf(chatA.copy(myReadAt = 1_000L))) }
+        val repository = repository(dao, remote)
+        dao.messagesForUnread.value = listOf(
+            message("read", "them", 1_000L),
+            message("new1", "them", 2_000L),
+            message("new2", "them", 3_000L),
+            message("mine", "me", 4_000L),
+        )
+        repository.sync()
+        assertThat(repository.chats.value.single().unreadCount).isEqualTo(2)
+
+        // Read on this device (ahead of the server), then the server's older copy arrives again.
+        dao.advanceMyReadAt(chatA.id, 3_000L)
+        repository.sync()
+
+        assertThat(repository.chats.value.single().unreadCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `the user's last message shows how far it got`() = runTest {
+        val dao = FakeChatDao()
+        val mine = chatA.copy(lastMessage = LastMessage("Привет", "me", 2_000L))
+        val remote = FakeChatRemoteDataSource()
+        val repository = repository(dao, remote)
+
+        remote.fetchResult = Result.Success(listOf(mine))
+        repository.sync()
+        assertThat(repository.chats.value.single().lastMessage?.receipt).isEqualTo(LastMessageReceipt.SENT)
+
+        remote.fetchResult = Result.Success(listOf(mine.copy(peerDeliveredAt = 2_000L)))
+        repository.sync()
+        assertThat(repository.chats.value.single().lastMessage?.receipt).isEqualTo(LastMessageReceipt.DELIVERED)
+
+        remote.fetchResult = Result.Success(listOf(mine.copy(peerDeliveredAt = 2_000L, peerReadAt = 2_000L)))
+        repository.sync()
+        assertThat(repository.chats.value.single().lastMessage?.receipt).isEqualTo(LastMessageReceipt.READ)
+
+        // Someone else's message carries no receipt.
+        remote.fetchResult = Result.Success(listOf(chatA.copy(lastMessage = LastMessage("Hi", "them", 3_000L))))
+        repository.sync()
+        assertThat(repository.chats.value.single().lastMessage?.receipt).isEqualTo(null)
     }
 }

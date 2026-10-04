@@ -24,11 +24,19 @@ data class ChatParticipant(
             .ifEmpty { "?" }
 }
 
+/** How far the user's own last message got; `null` when the last message is someone else's. */
+enum class LastMessageReceipt {
+    SENT,
+    DELIVERED,
+    READ,
+}
+
 data class LastMessage(
     val text: String,
     val senderId: String,
     /** Epoch millis. */
     val sentAt: Long,
+    val receipt: LastMessageReceipt? = null,
 )
 
 data class Chat(
@@ -40,4 +48,10 @@ data class Chat(
     val lastMessage: LastMessage?,
     /** Epoch millis; drives the list order. */
     val updatedAt: Long,
+    /** Messages from others after the user's read mark, as cached in Room. */
+    val unreadCount: Int = 0,
+    /** Read / delivered marks (epoch millis of the message they point at), see `ChatEntity`. */
+    val myReadAt: Long? = null,
+    val peerReadAt: Long? = null,
+    val peerDeliveredAt: Long? = null,
 )

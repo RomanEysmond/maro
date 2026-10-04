@@ -86,6 +86,15 @@ interface MessageRepository {
     /** The chat is open on screen right now (its [syncMessages] is being collected). */
     fun isChatOpen(chatId: String): Boolean
 
+    /** Id of the newest message from someone else in the chat (Room), `null` while there is none. */
+    fun newestIncomingMessageId(chatId: String): Flow<String?>
+
+    /**
+     * The user has seen the chat up to its newest message: moves their read mark (locally at once, on the server in
+     * the background), which clears the unread counter and shows the senders their messages as READ.
+     */
+    suspend fun markRead(chatId: String)
+
     /** Sends everything that is SENDING, oldest first. [attempt] counts the previous background runs. */
     suspend fun flushOutbox(attempt: Int): OutboxResult
 }

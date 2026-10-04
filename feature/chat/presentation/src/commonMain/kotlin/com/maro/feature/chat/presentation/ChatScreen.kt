@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,12 +45,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
+import com.maro.core.presentation.time.dayHeaderText
+import com.maro.core.presentation.time.messageTimeText
 import com.maro.core.presentation.util.UiText
 import com.maro.core.presentation.util.toUiText
 import com.maro.core.designsystem.component.InitialsAvatar
@@ -66,12 +71,16 @@ import com.maro.feature.chat.presentation.generated.resources.chat_history_error
 import com.maro.feature.chat.presentation.generated.resources.chat_history_retry
 import com.maro.feature.chat.presentation.generated.resources.chat_input_hint
 import com.maro.feature.chat.presentation.generated.resources.chat_send
+import com.maro.feature.chat.presentation.generated.resources.chat_status_delivered
 import com.maro.feature.chat.presentation.generated.resources.chat_status_failed
+import com.maro.feature.chat.presentation.generated.resources.chat_status_read
 import com.maro.feature.chat.presentation.generated.resources.chat_status_sending
 import com.maro.feature.chat.presentation.generated.resources.chat_status_sent
+import com.maro.feature.chat.presentation.generated.resources.chat_typing
 import com.maro.feature.chat.presentation.generated.resources.chat_updating
 import com.maro.feature.chat.presentation.generated.resources.chat_waiting_for_network
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -81,7 +90,13 @@ fun ChatRoot(
     onNavigateBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val messages = viewModel.messages.collectAsLazyPagingItems()
+    val items = viewModel.items.collectAsLazyPagingItems()
+
+    // Messages count as read only while the chat is actually in front of the user.
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onAction(ChatAction.OnVisibilityChange(isVisible = true))
+        onPauseOrDispose { viewModel.onAction(ChatAction.OnVisibilityChange(isVisible = false)) }
+    }
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
@@ -91,7 +106,7 @@ fun ChatRoot(
 
     ChatScreen(
         state = state,
-        messages = messages,
+        items = items,
         onAction = viewModel::onAction,
     )
 }
@@ -100,11 +115,11 @@ fun ChatRoot(
 @Composable
 fun ChatScreen(
     state: ChatState,
-    messages: LazyPagingItems<Message>,
+    items: LazyPagingItems<ChatItem>,
     onAction: (ChatAction) -> Unit,
 ) {
     val listState = rememberLazyListState()
-    FollowNewestMessage(listState = listState, messages = messages)
+    FollowNewestMessage(listState = listState, items = items)
 
     Scaffold(
         topBar = {
@@ -146,7 +161,7 @@ fun ChatScreen(
                 .imePadding(),
         ) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                if (messages.itemCount == 0) {
+                if (items.itemCount == 0) {
                     EmptyChat(state = state, modifier = Modifier.align(Alignment.Center))
                 } else {
                     // Newest at the bottom (see FollowNewestMessage for new arrivals). Scrolling up reaches the end
@@ -158,19 +173,25 @@ fun ChatScreen(
                         // Bottom, as reverseLayout's own default: a short chat sits next to the input, not at the top.
                         verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom),
                     ) {
-                        items(count = messages.itemCount, key = messages.itemKey { it.id }) { index ->
-                            messages[index]?.let { message ->
-                                MessageBubble(
-                                    message = message,
-                                    onRetryClick = { onAction(ChatAction.OnRetryClick(message.id)) },
+                        items(
+                            count = items.itemCount,
+                            key = items.itemKey { it.key },
+                            contentType = items.itemContentType { it::class.simpleName },
+                        ) { index ->
+                            when (val item = items[index]) {
+                                is ChatItem.MessageItem -> MessageBubble(
+                                    message = item.message,
+                                    onRetryClick = { onAction(ChatAction.OnRetryClick(item.message.id)) },
                                 )
+                                is ChatItem.DaySeparator -> DayHeader(date = item.date)
+                                null -> Unit
                             }
                         }
                         // Last in a reversed list = on top of the screen, above the oldest message.
                         item(key = "history") {
                             HistoryLoadState(
-                                loadState = messages.loadState.append,
-                                onRetryClick = messages::retry,
+                                loadState = items.loadState.append,
+                                onRetryClick = items::retry,
                             )
                         }
                     }
@@ -195,9 +216,10 @@ fun ChatScreen(
 @Composable
 private fun FollowNewestMessage(
     listState: LazyListState,
-    messages: LazyPagingItems<Message>,
+    items: LazyPagingItems<ChatItem>,
 ) {
-    val newestId = if (messages.itemCount > 0) messages.peek(0)?.id else null
+    // Index 0 is always the newest message: a day's heading sits above (after) that day's oldest message.
+    val newestId = if (items.itemCount > 0) items.peek(0)?.key else null
     var shownNewestId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(newestId) {
         val previous = shownNewestId
@@ -213,8 +235,25 @@ private fun FollowNewestMessage(
 private fun ChatState.subtitle(): String? = when {
     error != null -> error.asString()
     connection == ChatConnection.WAITING_FOR_NETWORK -> stringResource(Res.string.chat_waiting_for_network)
+    isPeerTyping -> stringResource(Res.string.chat_typing)
     connection == ChatConnection.UPDATING -> stringResource(Res.string.chat_updating)
     else -> null
+}
+
+@Composable
+private fun DayHeader(date: LocalDate) {
+    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        ) {
+            Text(
+                text = dayHeaderText(date),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+    }
 }
 
 @Composable
@@ -284,8 +323,14 @@ private fun MessageBubble(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Text(text = message.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f, fill = false))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = messageTimeText(message.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
                 if (isOutgoing) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     StatusIcon(status = message.status, onRetryClick = onRetryClick)
                 }
             }
@@ -309,7 +354,19 @@ private fun StatusIcon(
             imageVector = Icons.Default.Done,
             contentDescription = stringResource(Res.string.chat_status_sent),
             modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        MessageStatus.DELIVERED -> Icon(
+            imageVector = Icons.Default.DoneAll,
+            contentDescription = stringResource(Res.string.chat_status_delivered),
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        MessageStatus.READ -> Icon(
+            imageVector = Icons.Default.DoneAll,
+            contentDescription = stringResource(Res.string.chat_status_read),
+            modifier = Modifier.size(16.dp),
+            tint = MaroTheme.colors.readReceipt,
         )
         MessageStatus.FAILED -> Icon(
             imageVector = Icons.Default.ErrorOutline,
@@ -352,15 +409,15 @@ private fun MessageInput(
 @Preview
 @Composable
 private fun ChatScreenPreview() {
-    val messages = listOf(
+    val items = listOf(
         Message("3", "c", "me", "Не ушло", 3L, MessageStatus.FAILED, isOutgoing = true),
-        Message("2", "c", "me", "Привет, как дела?", 2L, MessageStatus.SENDING, isOutgoing = true),
+        Message("2", "c", "me", "Привет, как дела?", 2L, MessageStatus.READ, isOutgoing = true),
         Message("1", "c", "them", "Привет!", 1L, MessageStatus.SENT, isOutgoing = false),
-    )
+    ).map<Message, ChatItem> { ChatItem.MessageItem(it) } + ChatItem.DaySeparator(LocalDate(2026, 9, 30))
     MaroTheme {
         ChatScreen(
-            state = ChatState(header = ChatHeader("Иван Иванов", "ИИ"), connection = null, isCaughtUp = true),
-            messages = flowOf(PagingData.from(messages)).collectAsLazyPagingItems(),
+            state = ChatState(header = ChatHeader("Иван Иванов", "ИИ"), connection = null, isCaughtUp = true, isPeerTyping = true),
+            items = flowOf(PagingData.from(items)).collectAsLazyPagingItems(),
             onAction = {},
         )
     }

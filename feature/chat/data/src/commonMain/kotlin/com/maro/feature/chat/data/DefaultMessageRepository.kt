@@ -61,7 +61,15 @@ class DefaultMessageRepository(
     // (a double send would be harmless anyway — the server write is idempotent — but it is wasted work).
     private val outboxMutex = Mutex()
 
-    private val synchronizer = MessageSynchronizer(messageDao, chatDao, remote, connectivity)
+    private val receipts = ReceiptReporter(messageDao, chatDao, remote, currentUser, scope)
+
+    private val synchronizer = MessageSynchronizer(
+        messageDao = messageDao,
+        chatDao = chatDao,
+        remote = remote,
+        connectivity = connectivity,
+        deliveryReporter = receipts,
+    )
 
     @OptIn(ExperimentalPagingApi::class)
     override fun messages(chatId: String): Flow<PagingData<Message>> =
@@ -127,6 +135,11 @@ class DefaultMessageRepository(
     }
 
     override fun isChatOpen(chatId: String): Boolean = synchronizer.isChatOpen(chatId)
+
+    override fun newestIncomingMessageId(chatId: String): Flow<String?> =
+        messageDao.observeNewestIncoming(chatId, currentUser.userId.orEmpty()).map { it?.id }
+
+    override suspend fun markRead(chatId: String) = receipts.markRead(chatId)
 
     override suspend fun flushOutbox(attempt: Int): OutboxResult = outboxMutex.withLock {
         for (message in messageDao.getByStatus(MessageStatus.SENDING.name)) {

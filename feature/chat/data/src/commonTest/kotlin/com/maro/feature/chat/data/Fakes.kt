@@ -7,6 +7,8 @@ import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
+import com.maro.core.database.message.MessageWithReceipts
+import com.maro.core.database.chat.ChatWithUnread
 import com.maro.core.domain.auth.CurrentUserProvider
 import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
@@ -16,18 +18,35 @@ import com.maro.feature.chat.data.push.MessagePushNotifier
 import com.maro.feature.chat.domain.OutboxScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class FakeMessageDao : MessageDao {
     val rows = MutableStateFlow<List<MessageEntity>>(emptyList())
     val syncStates = MutableStateFlow<Map<String, MessageSyncEntity>>(emptyMap())
 
+    /** The chats the receipts are joined from (Room joins the `chats` table). */
+    var chatDao: FakeChatDao? = null
+
     /** A snapshot of the rows at the time it is asked for (Room's own source also follows later changes). */
-    override fun pagingSource(chatId: String): PagingSource<Int, MessageEntity> =
-        rows.value.filter { it.chatId == chatId }
+    override fun pagingSource(chatId: String): PagingSource<Int, MessageWithReceipts> {
+        val chat = chatDao?.chats?.value?.firstOrNull { it.id == chatId }
+        return rows.value.filter { it.chatId == chatId }
             .sortedWith(compareByDescending<MessageEntity> { it.createdAt }.thenByDescending { it.id })
+            .map { MessageWithReceipts(it, chat?.peerReadAt, chat?.peerDeliveredAt) }
             .asPagingSourceFactory()
             .invoke()
+    }
+
+    override fun observeNewestIncoming(chatId: String, userId: String): Flow<MessageEntity?> =
+        rows.map { newestIncoming(it, chatId, userId) }
+
+    override suspend fun getNewestIncoming(chatId: String, userId: String): MessageEntity? =
+        newestIncoming(rows.value, chatId, userId)
+
+    private fun newestIncoming(rows: List<MessageEntity>, chatId: String, userId: String): MessageEntity? =
+        rows.filter { it.chatId == chatId && it.senderId != userId }
+            .maxWithOrNull(compareBy<MessageEntity> { it.createdAt }.thenBy { it.id })
 
     override suspend fun insert(message: MessageEntity) {
         rows.value = rows.value + message
@@ -63,6 +82,28 @@ class FakeMessageDao : MessageDao {
 
 class FakeChatDao : ChatDao {
     val chats = MutableStateFlow<List<ChatEntity>>(emptyList())
+    private val CHATS get() = chats
+    private val messagesForUnread = MutableStateFlow<List<MessageEntity>>(emptyList())
+
+    override fun observeAllWithUnread(userId: String): Flow<List<ChatWithUnread>> =
+        combine(CHATS, messagesForUnread) { chats, messages ->
+            chats.map { chat ->
+                ChatWithUnread(
+                    chat = chat,
+                    unreadCount = messages.count {
+                        it.chatId == chat.id && it.senderId != userId && it.createdAt > (chat.myReadAt ?: 0L)
+                    },
+                )
+            }
+        }
+
+    override suspend fun getAll(): List<ChatEntity> = CHATS.value
+
+    override suspend fun advanceMyReadAt(id: String, readAt: Long) {
+        CHATS.value = CHATS.value.map { chat ->
+            if (chat.id == id && (chat.myReadAt ?: Long.MIN_VALUE) < readAt) chat.copy(myReadAt = readAt) else chat
+        }
+    }
 
     override fun observeAll(): Flow<List<ChatEntity>> = chats
 
@@ -116,6 +157,21 @@ class FakeMessageRemoteDataSource : MessageRemoteDataSource {
         limit: Int,
     ): Result<List<RemoteMessage>, DataError.Network> =
         read("older") { sorted(chatId).filter { it.cursor < before }.asReversed().take(limit) }
+
+    /** Every receipt written: (chatId, userId, kind, messageId). */
+    val receipts = mutableListOf<List<Any>>()
+    var receiptResult: EmptyResult<DataError.Network> = Result.Success(Unit)
+
+    override suspend fun reportReceipt(
+        chatId: String,
+        userId: String,
+        kind: ReceiptKind,
+        messageId: String,
+        atMillis: Long,
+    ): EmptyResult<DataError.Network> {
+        receipts += listOf(chatId, userId, kind, messageId)
+        return receiptResult
+    }
 
     override fun observeNewer(
         chatId: String,

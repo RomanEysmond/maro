@@ -10,7 +10,7 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.prop
-import com.maro.core.database.message.MessageEntity
+import com.maro.core.database.message.MessageWithReceipts
 import com.maro.core.domain.util.DataError
 import com.maro.feature.chat.domain.LoadMessagesException
 import kotlin.test.Test
@@ -24,7 +24,7 @@ class MessageRemoteMediatorTest {
     private val synchronizer = MessageSynchronizer(dao, FakeChatDao(), remote, FakeConnectivityObserver())
     private val mediator = MessageRemoteMediator("chat", synchronizer)
 
-    private val pagingState = PagingState<Int, MessageEntity>(
+    private val pagingState = PagingState<Int, MessageWithReceipts>(
         pages = emptyList(),
         anchorPosition = null,
         config = PagingConfig(pageSize = MessageSynchronizer.PAGE_SIZE),

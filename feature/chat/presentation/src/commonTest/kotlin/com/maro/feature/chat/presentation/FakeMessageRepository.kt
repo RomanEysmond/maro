@@ -53,5 +53,14 @@ class FakeMessageRepository : MessageRepository {
 
     override fun isChatOpen(chatId: String): Boolean = false
 
+    val newestIncoming = MutableStateFlow<String?>(null)
+    var markReadCalls = 0
+
+    override fun newestIncomingMessageId(chatId: String): Flow<String?> = newestIncoming
+
+    override suspend fun markRead(chatId: String) {
+        markReadCalls++
+    }
+
     override suspend fun flushOutbox(attempt: Int): OutboxResult = OutboxResult.DONE
 }

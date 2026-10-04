@@ -8,17 +8,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.FloatingActionButton
@@ -42,21 +47,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.component.InitialsAvatar
 import com.maro.core.designsystem.theme.MaroTheme
+import com.maro.core.presentation.time.chatListTimeText
 import com.maro.core.presentation.util.ObserveAsEvents
 import com.maro.feature.chatlist.domain.Chat
 import com.maro.feature.chatlist.domain.ChatParticipant
 import com.maro.feature.chatlist.domain.ChatType
 import com.maro.feature.chatlist.domain.LastMessage
+import com.maro.feature.chatlist.domain.LastMessageReceipt
 import com.maro.feature.chatlist.presentation.generated.resources.Res
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empty_subtitle
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empty_title
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_menu
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_new_chat
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_no_messages_yet
+import com.maro.feature.chatlist.presentation.generated.resources.chat_list_receipt_delivered
+import com.maro.feature.chatlist.presentation.generated.resources.chat_list_receipt_read
+import com.maro.feature.chatlist.presentation.generated.resources.chat_list_receipt_sent
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_retry
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_title
 import com.maro.feature.chatlist.presentation.generated.resources.menu_help
@@ -217,16 +228,65 @@ private fun ChatListItem(
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        Column {
-            Text(text = chat.otherParticipant.fullName, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = chat.lastMessage?.text ?: stringResource(Res.string.chat_list_no_messages_yet),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = chat.otherParticipant.fullName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                chat.lastMessage?.receipt?.let { receipt ->
+                    ReceiptIcon(receipt)
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = chat.lastMessage?.text ?: stringResource(Res.string.chat_list_no_messages_yet),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column(horizontalAlignment = Alignment.End) {
+            chat.lastMessage?.let { message ->
+                Text(
+                    text = chatListTimeText(message.sentAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
+            if (chat.unreadCount > 0) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                    Text(text = if (chat.unreadCount > MAX_UNREAD_SHOWN) "$MAX_UNREAD_SHOWN+" else chat.unreadCount.toString())
+                }
+            }
         }
     }
 }
+
+@Composable
+private fun ReceiptIcon(receipt: LastMessageReceipt) {
+    val tint = if (receipt == LastMessageReceipt.READ) {
+        MaroTheme.colors.readReceipt
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    }
+    Icon(
+        imageVector = if (receipt == LastMessageReceipt.SENT) Icons.Default.Done else Icons.Default.DoneAll,
+        contentDescription = stringResource(
+            when (receipt) {
+                LastMessageReceipt.SENT -> Res.string.chat_list_receipt_sent
+                LastMessageReceipt.DELIVERED -> Res.string.chat_list_receipt_delivered
+                LastMessageReceipt.READ -> Res.string.chat_list_receipt_read
+            },
+        ),
+        modifier = Modifier.size(16.dp),
+        tint = tint,
+    )
+}
+
+private const val MAX_UNREAD_SHOWN = 99
 
 @Composable
 private fun ChatListMessage(

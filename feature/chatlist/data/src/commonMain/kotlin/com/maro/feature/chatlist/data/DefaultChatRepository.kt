@@ -1,6 +1,7 @@
 package com.maro.feature.chatlist.data
 
 import com.maro.core.database.chat.ChatDao
+import com.maro.core.domain.auth.CurrentUserProvider
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.asEmptyResult
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.stateIn
 class DefaultChatRepository(
     private val chatDao: ChatDao,
     private val remote: ChatRemoteDataSource,
+    private val currentUser: CurrentUserProvider,
     // No lifecycle owner to scope this to yet (same as FirebaseSessionRepository's listener): lives with the
     // singleton for the process by default, same as every other always-on listener in the app so far.
     // Overridable so tests can drive it with a TestScope instead of a real background dispatcher.
@@ -28,8 +30,11 @@ class DefaultChatRepository(
 
     // A StateFlow (not a plain Flow) so callers can read `.value` synchronously right after `sync()` returns,
     // instead of racing a separate collector of this same flow (see ChatListViewModel).
-    override val chats: StateFlow<List<Chat>> = chatDao.observeAll()
-        .map { entities -> entities.map { it.toDomain() } }
+    override val chats: StateFlow<List<Chat>> = chatDao.observeAllWithUnread(currentUser.userId.orEmpty())
+        .map { rows ->
+            val userId = currentUser.userId
+            rows.map { it.toDomain(userId) }
+        }
         .stateIn(listenerScope, SharingStarted.Eagerly, emptyList())
 
     init {

@@ -97,6 +97,32 @@ internal class FirestoreMessageRemoteDataSource(
         awaitClose { registration.remove() }
     }
 
+    override suspend fun reportReceipt(
+        chatId: String,
+        userId: String,
+        kind: ReceiptKind,
+        messageId: String,
+        atMillis: Long,
+    ): EmptyResult<DataError.Network> = try {
+        val field = when (kind) {
+            ReceiptKind.READ -> FIELD_LAST_READ
+            ReceiptKind.DELIVERED -> FIELD_LAST_DELIVERED
+        }
+        // Only the user's own entry of the map changes; the rules allow nothing else in this kind of update.
+        firestore.collection(CHATS).document(chatId).update(
+            FieldPath.of(field, userId),
+            mapOf(
+                "messageId" to messageId,
+                "at" to Timestamp(atMillis / MILLIS_PER_SECOND, ((atMillis % MILLIS_PER_SECOND) * NANOS_PER_MILLI).toInt()),
+            ),
+        ).await()
+        Result.Success(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.Error(e.toNetworkError())
+    }
+
     private suspend fun fetch(chatId: String, query: Query): Result<List<RemoteMessage>, DataError.Network> =
         try {
             // Source.SERVER: offline has to be a failure, not an empty page from the (memory-only) cache —
@@ -157,6 +183,10 @@ internal class FirestoreMessageRemoteDataSource(
         const val CHATS = "chats"
         const val MESSAGES = "messages"
         const val FIELD_CREATED_AT = "createdAt"
+        const val FIELD_LAST_READ = "lastRead"
+        const val FIELD_LAST_DELIVERED = "lastDelivered"
+        const val MILLIS_PER_SECOND = 1_000L
+        const val NANOS_PER_MILLI = 1_000_000
         const val MICROS_PER_SECOND = 1_000_000L
         const val NANOS_PER_MICRO = 1_000
     }

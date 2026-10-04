@@ -27,8 +27,8 @@ import kotlinx.coroutines.test.runTest
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultMessageRepositoryTest {
 
-    private val dao = FakeMessageDao()
     private val chatDao = FakeChatDao()
+    private val dao = FakeMessageDao().also { it.chatDao = chatDao }
     private val remote = FakeMessageRemoteDataSource()
     private val scheduler = FakeOutboxScheduler()
     private val user = FakeCurrentUserProvider("me")
@@ -256,5 +256,73 @@ class DefaultMessageRepositoryTest {
         repository.chatHeader("other").test {
             assertThat(awaitItem()).isNull()
         }
+    }
+
+    private fun chatWithMarks(peerDeliveredAt: Long? = null, peerReadAt: Long? = null) = ChatEntity(
+        id = "chat", type = "direct", otherUserId = "them", otherUserFirstName = "Анна", otherUserLastName = "",
+        otherUserUsername = null, lastMessageText = null, lastMessageSenderId = null, lastMessageAt = null,
+        updatedAt = 0L, peerReadAt = peerReadAt, peerDeliveredAt = peerDeliveredAt,
+    )
+
+    @Test
+    fun `outgoing messages become DELIVERED and READ as the other side's marks pass them`() = runTest {
+        dao.upsertAll(
+            listOf(
+                serverMessage("old", second = 1, senderId = "me").toEntity(),
+                serverMessage("new", second = 2, senderId = "me").toEntity(),
+                serverMessage("theirs", second = 3, senderId = "them").toEntity(),
+            ),
+        )
+        chatDao.chats.value = listOf(chatWithMarks(peerDeliveredAt = 2_000L, peerReadAt = 1_000L))
+
+        val statuses = repository.messages("chat").asSnapshot().associate { it.id to it.status }
+
+        assertThat(statuses["old"]).isEqualTo(MessageStatus.READ)
+        assertThat(statuses["new"]).isEqualTo(MessageStatus.DELIVERED)
+        // Incoming messages carry no receipts of their own.
+        assertThat(statuses["theirs"]).isEqualTo(MessageStatus.SENT)
+    }
+
+    @Test
+    fun `reading a chat moves the local mark at once and reports the newest incoming message`() = runTest {
+        chatDao.chats.value = listOf(chatWithMarks())
+        dao.upsertAll(
+            listOf(
+                serverMessage("in1", second = 1, senderId = "them").toEntity(),
+                serverMessage("in2", second = 2, senderId = "them").toEntity(),
+                serverMessage("mine", second = 3, senderId = "me").toEntity(),
+            ),
+        )
+
+        repository.markRead("chat")
+
+        assertThat(chatDao.chats.value.single().myReadAt).isEqualTo(2_000L)
+        assertThat(remote.receipts).isEqualTo(listOf(listOf("chat", "me", ReceiptKind.READ, "in2")))
+
+        // Nothing new: no second write.
+        repository.markRead("chat")
+        assertThat(remote.receipts).hasSize(1)
+    }
+
+    @Test
+    fun `a failed receipt is written again next time`() = runTest {
+        chatDao.chats.value = listOf(chatWithMarks())
+        dao.upsertAll(listOf(serverMessage("in", second = 1, senderId = "them").toEntity()))
+        remote.receiptResult = Result.Error(DataError.Network.NO_INTERNET)
+
+        repository.markRead("chat")
+        remote.receiptResult = Result.Success(Unit)
+        repository.markRead("chat")
+
+        assertThat(remote.receipts).hasSize(2)
+    }
+
+    @Test
+    fun `messages from others that arrive by catch-up are reported as delivered`() = runTest {
+        remote.messages.value = listOf(serverMessage("in", second = 1, senderId = "them"))
+
+        repository.catchUp("chat")
+
+        assertThat(remote.receipts).isEqualTo(listOf(listOf("chat", "me", ReceiptKind.DELIVERED, "in")))
     }
 }

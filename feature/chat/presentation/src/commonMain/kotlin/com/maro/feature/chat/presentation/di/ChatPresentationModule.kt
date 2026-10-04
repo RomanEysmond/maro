@@ -6,5 +6,5 @@ import org.koin.dsl.module
 
 val chatPresentationModule = module {
     // Takes the id of the chat as a parameter.
-    viewModel { params -> ChatViewModel(params.get(), get()) }
+    viewModel { params -> ChatViewModel(params.get(), get(), get()) }
 }
