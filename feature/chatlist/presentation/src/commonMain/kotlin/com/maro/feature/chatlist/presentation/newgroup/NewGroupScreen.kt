@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.component.InitialsAvatar
 import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.core.presentation.util.rememberTextFieldValue
 import com.maro.feature.chatlist.domain.FoundUser
 import com.maro.feature.chatlist.presentation.generated.resources.Res
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_back
@@ -94,16 +95,18 @@ fun NewGroupScreen(
             modifier = Modifier.fillMaxSize().padding(padding).imePadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            val title = rememberTextFieldValue(state.title)
             OutlinedTextField(
-                value = state.title,
-                onValueChange = { onAction(NewGroupAction.OnTitleChange(it)) },
+                value = title.value,
+                onValueChange = { title.value = it; onAction(NewGroupAction.OnTitleChange(it.text)) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(Res.string.new_group_title_label)) },
                 singleLine = true,
             )
+            val query = rememberTextFieldValue(state.query)
             OutlinedTextField(
-                value = state.query,
-                onValueChange = { onAction(NewGroupAction.OnQueryChange(it)) },
+                value = query.value,
+                onValueChange = { query.value = it; onAction(NewGroupAction.OnQueryChange(it.text)) },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(Res.string.new_group_username)) },
                 prefix = { Text("@") },

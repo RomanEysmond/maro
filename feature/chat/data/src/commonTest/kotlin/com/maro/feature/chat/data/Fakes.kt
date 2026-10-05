@@ -3,13 +3,14 @@ package com.maro.feature.chat.data
 import androidx.paging.PagingSource
 import androidx.paging.testing.asPagingSourceFactory
 import com.maro.core.database.chat.ChatDao
+import com.maro.core.database.chat.ChatDraftEntity
 import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.chat.ChatMemberEntity
+import com.maro.core.database.chat.ChatWithUnread
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
 import com.maro.core.database.message.MessageWithReceipts
-import com.maro.core.database.chat.ChatWithUnread
 import com.maro.core.domain.auth.CurrentUserProvider
 import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
@@ -64,6 +65,8 @@ class FakeMessageDao : MessageDao {
     override suspend fun getByStatus(status: String): List<MessageEntity> =
         rows.value.filter { it.status == status }.sortedWith(compareBy({ it.createdAt }, { it.id }))
 
+    override suspend fun countUnsent(): Int = rows.value.count { it.status == "SENDING" || it.status == "FAILED" }
+
     override suspend fun updateStatus(id: String, status: String) {
         rows.value = rows.value.map { if (it.id == id) it.copy(status = status) else it }
     }
@@ -82,6 +85,22 @@ class FakeMessageDao : MessageDao {
 }
 
 class FakeChatDao : ChatDao {
+    /** chatId -> draft text. */
+    val drafts = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    override suspend fun getDraft(chatId: String): String? = drafts.value[chatId]
+
+    override suspend fun upsertDraft(draft: ChatDraftEntity) {
+        drafts.value = drafts.value + (draft.chatId to draft.text)
+    }
+
+    override suspend fun deleteDraft(chatId: String) {
+        drafts.value = drafts.value - chatId
+    }
+
+    override suspend fun deleteDraftsExcept(chats: List<String>) {
+        drafts.value = drafts.value.filterKeys { it in chats }
+    }
     val chats = MutableStateFlow<List<ChatEntity>>(emptyList())
     private val CHATS get() = chats
     private val messagesForUnread = MutableStateFlow<List<MessageEntity>>(emptyList())
@@ -227,7 +246,15 @@ class FakePushNotifier : MessagePushNotifier {
     }
 }
 
-class FakeCurrentUserProvider(override var userId: String? = "me") : CurrentUserProvider
+class FakeCurrentUserProvider(userId: String? = "me") : CurrentUserProvider {
+    override val userIdFlow = MutableStateFlow(userId)
+
+    override var userId: String?
+        get() = userIdFlow.value
+        set(value) {
+            userIdFlow.value = value
+        }
+}
 
 /** A server message `id` at [second] seconds (microsecond timestamps, like the real server). */
 fun serverMessage(id: String, second: Long, chatId: String = "chat", senderId: String = "them", text: String = id) =

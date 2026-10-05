@@ -8,8 +8,8 @@ import androidx.room3.Insert
 import androidx.room3.Query
 import androidx.room3.Transaction
 import androidx.room3.Upsert
-import kotlinx.coroutines.flow.Flow
 import androidx.room3.paging.PagingSourceDaoReturnTypeConverter
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 // Room 3 knows PagingSource only through this converter from room3-paging.
@@ -59,6 +59,10 @@ interface MessageDao {
     /** Oldest first: messages must reach the server in the order they were written. */
     @Query("SELECT * FROM messages WHERE status = :status ORDER BY createdAt ASC, id ASC")
     suspend fun getByStatus(status: String): List<MessageEntity>
+
+    /** The user's messages that have not reached the server: still queued or given up on. */
+    @Query("SELECT COUNT(*) FROM messages WHERE status IN ('SENDING', 'FAILED')")
+    suspend fun countUnsent(): Int
 
     @Query("UPDATE messages SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: String)

@@ -1,5 +1,6 @@
 package com.maro.feature.profile.presentation.edit
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.hasSize
@@ -50,7 +51,8 @@ class EditProfileViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(mode: EditProfileMode = EditProfileMode.EDIT) = EditProfileViewModel(mode, repository)
+    private fun viewModel(mode: EditProfileMode = EditProfileMode.EDIT, savedState: SavedStateHandle = SavedStateHandle()) =
+        EditProfileViewModel(mode, repository, savedState)
 
     @Test
     fun `fields are filled from the current profile`() {
@@ -195,5 +197,16 @@ class EditProfileViewModelTest {
             assertThat(awaitItem()).isEqualTo(EditProfileEvent.Close)
         }
         assertThat(repository.updates).hasSize(0)
+    }
+
+    @Test
+    fun `unsaved edits win over the stored profile after the process was killed`() {
+        val savedState = SavedStateHandle()
+        viewModel(savedState = savedState).onAction(EditProfileAction.OnBioChange("Пишу роман"))
+
+        val restored = viewModel(savedState = savedState)
+
+        assertThat(restored.state.value.bio).isEqualTo("Пишу роман")
+        assertThat(restored.state.value.firstName).isEqualTo(existing.firstName)
     }
 }

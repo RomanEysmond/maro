@@ -99,6 +99,18 @@ interface MessageRepository {
 
     /** Sends everything that is SENDING, oldest first. [attempt] counts the previous background runs. */
     suspend fun flushOutbox(attempt: Int): OutboxResult
+
+    /** The text left unsent in the chat's input (kept across restarts); empty when there is none. */
+    suspend fun draft(chatId: String): String
+
+    /**
+     * Remembers the input as typed; a blank text removes the draft. Not suspending: the write finishes even when the
+     * screen that asked for it is already gone (leaving the chat right after typing).
+     */
+    fun saveDraft(chatId: String, text: String)
+
+    /** The user's messages that have not reached the server yet (queued or failed): lost on sign-out. */
+    suspend fun unsentCount(): Int
 }
 
 /** Asks the platform to call [MessageRepository.flushOutbox] later (Android: WorkManager, once the network is up). */

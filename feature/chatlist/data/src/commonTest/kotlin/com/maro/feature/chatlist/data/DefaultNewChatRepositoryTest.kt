@@ -87,6 +87,7 @@ class DefaultNewChatRepositoryTest {
     private var nextId = 0
     private val currentUser = object : CurrentUserProvider {
         override val userId: String = "uid-m"
+        override val userIdFlow = MutableStateFlow<String?>("uid-m")
     }
 
     private fun repository(profiles: FakeProfiles = FakeProfiles(me)) =

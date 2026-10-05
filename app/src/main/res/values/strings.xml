@@ -2,4 +2,11 @@
     <string name="app_name">Maro</string>
     <string name="notification_channel_messages">Messages</string>
     <string name="notification_new_message">New message</string>
+    <string name="logout_title">Log out?</string>
+    <string name="logout_confirm">Log out</string>
+    <string name="logout_cancel">Cancel</string>
+    <plurals name="logout_unsent_messages">
+        <item quantity="one">You have %1$d unsent message. It will be lost if you log out.</item>
+        <item quantity="other">You have %1$d unsent messages. They will be lost if you log out.</item>
+    </plurals>
 </resources>

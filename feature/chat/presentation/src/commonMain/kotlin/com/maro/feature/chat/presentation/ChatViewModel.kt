@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -57,6 +57,11 @@ class ChatViewModel(
     private val isVisible = MutableStateFlow(false)
 
     init {
+        // What was typed here last time and not sent. Unless the user has started typing in the meantime.
+        viewModelScope.launch {
+            val draft = repository.draft(chatId)
+            if (draft.isNotEmpty()) _state.update { if (it.input.isEmpty()) it.copy(input = draft) else it }
+        }
         // The screen only ever reads Room; the server feeds Room through `syncMessages` below.
         repository.chatHeader(chatId)
             .onEach { header -> _state.update { it.copy(header = header) } }
@@ -87,6 +92,7 @@ class ChatViewModel(
             is ChatAction.OnInputChange -> {
                 val input = action.value.take(MessageRules.MAX_LENGTH)
                 _state.update { it.copy(input = input) }
+                repository.saveDraft(chatId, input)
                 typingRepository.setTyping(chatId, isTyping = input.isNotBlank())
             }
             is ChatAction.OnVisibilityChange -> isVisible.value = action.isVisible
@@ -104,11 +110,15 @@ class ChatViewModel(
         if (text.isBlank()) return
         // Cleared at once: the message is in Room (and on screen) before the network is even asked.
         _state.update { it.copy(input = "") }
+        repository.saveDraft(chatId, "")
         typingRepository.setTyping(chatId, isTyping = false)
         viewModelScope.launch {
             val result = repository.sendMessage(chatId, text)
             // Only reachable for input the UI already rules out; keep the text rather than lose it.
-            if (result is Result.Error) _state.update { it.copy(input = text) }
+            if (result is Result.Error) {
+                _state.update { it.copy(input = text) }
+                repository.saveDraft(chatId, text)
+            }
         }
     }
 

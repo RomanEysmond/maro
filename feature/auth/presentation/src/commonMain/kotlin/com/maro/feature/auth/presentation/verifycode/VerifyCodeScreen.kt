@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.core.presentation.util.rememberTextFieldValue
 import com.maro.feature.auth.presentation.generated.resources.Res
 import com.maro.feature.auth.presentation.generated.resources.verify_back
 import com.maro.feature.auth.presentation.generated.resources.verify_code_label
@@ -113,9 +114,10 @@ fun VerifyCodeScreen(
                 textAlign = TextAlign.Center,
             )
 
+            val code = rememberTextFieldValue(state.code)
             OutlinedTextField(
-                value = state.code,
-                onValueChange = { onAction(VerifyCodeAction.OnCodeChange(it)) },
+                value = code.value,
+                onValueChange = { code.value = it; onAction(VerifyCodeAction.OnCodeChange(it.text)) },
                 label = { Text(stringResource(Res.string.verify_code_label)) },
                 modifier = Modifier
                     .fillMaxWidth()

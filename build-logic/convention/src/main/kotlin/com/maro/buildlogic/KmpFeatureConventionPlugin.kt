@@ -29,6 +29,7 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(catalog.library("koin-compose-viewmodel"))
                     implementation(catalog.library("lifecycle-viewmodel-compose"))
                     implementation(catalog.library("lifecycle-runtime-compose"))
+                    implementation(catalog.library("lifecycle-viewmodel-savedstate"))
                     implementation(catalog.library("kotlinx-serialization-json"))
                     implementation(catalog.library("kotlinx-coroutines-core"))
                 }

@@ -10,6 +10,7 @@ import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.GroupError
 import kotlin.test.Test
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 
 class DefaultGroupRepositoryTest {
@@ -36,6 +37,7 @@ class DefaultGroupRepositoryTest {
     private val remote = FakeGroupRemote()
     private val me = object : CurrentUserProvider {
         override val userId: String = "me"
+        override val userIdFlow = MutableStateFlow<String?>("me")
     }
     private val repository = DefaultGroupRepository(remote, me, newId = { "msg-1" })
 

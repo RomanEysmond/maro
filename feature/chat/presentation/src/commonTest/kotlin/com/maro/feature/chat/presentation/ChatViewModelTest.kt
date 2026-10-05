@@ -225,4 +225,25 @@ class ChatViewModelTest {
             assertThat(awaitItem()).isEqualTo(ChatEvent.NavigateToGroupInfo("chat"))
         }
     }
+
+    @Test
+    fun `the chat opens with its draft, and typing keeps the draft current`() {
+        repository.drafts["chat"] = "half a thought"
+        val viewModel = viewModel()
+        assertThat(viewModel.state.value.input).isEqualTo("half a thought")
+
+        viewModel.onAction(ChatAction.OnInputChange("half a thought, finished"))
+
+        assertThat(repository.drafts["chat"]).isEqualTo("half a thought, finished")
+    }
+
+    @Test
+    fun `sending clears the draft`() {
+        val viewModel = viewModel()
+        viewModel.onAction(ChatAction.OnInputChange("hello"))
+
+        viewModel.onAction(ChatAction.OnSendClick)
+
+        assertThat(repository.drafts).isEqualTo(emptyMap())
+    }
 }

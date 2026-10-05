@@ -1,11 +1,14 @@
 package com.maro.feature.chatlist.presentation.newgroup
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.maro.core.domain.chat.GroupRules
 import com.maro.core.domain.profile.ProfileRules
 import com.maro.core.domain.util.Result
+import com.maro.core.presentation.util.SavedDraft
 import com.maro.core.presentation.util.UiText
+import com.maro.feature.chatlist.domain.FoundUser
 import com.maro.feature.chatlist.domain.NewChatRepository
 import com.maro.feature.chatlist.presentation.generated.resources.Res
 import com.maro.feature.chatlist.presentation.generated.resources.new_group_already_added
@@ -13,16 +16,53 @@ import com.maro.feature.chatlist.presentation.util.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class SavedMember(val id: String, val firstName: String, val lastName: String, val username: String)
+
+/** The group being put together, kept across process death. */
+@Serializable
+private data class NewGroupDraft(val title: String, val query: String, val members: List<SavedMember>)
 
 class NewGroupViewModel(
     private val repository: NewChatRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(NewGroupState())
     val state = _state.asStateFlow()
+
+    private val draft = SavedDraft(savedStateHandle, NewGroupDraft.serializer())
+
+    init {
+        draft.restore()?.let { saved ->
+            _state.update { state ->
+                state.copy(
+                    title = saved.title,
+                    query = saved.query,
+                    members = saved.members.map { FoundUser(it.id, it.firstName, it.lastName, it.username) },
+                )
+            }
+        }
+        _state.map { state ->
+            NewGroupDraft(
+                title = state.title,
+                query = state.query,
+                members = state.members.map { SavedMember(it.id, it.firstName, it.lastName, it.username) },
+            )
+        }
+            .distinctUntilChanged()
+            .onEach(draft::save)
+            .launchIn(viewModelScope)
+    }
 
     private val _events = Channel<NewGroupEvent>()
     val events = _events.receiveAsFlow()

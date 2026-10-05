@@ -54,7 +54,7 @@ fun ChatWithUnread.toDomain(currentUserId: String?): Chat {
         }
         message.copy(receipt = receipt)
     }
-    return base.copy(lastMessage = lastMessage, unreadCount = unreadCount)
+    return base.copy(lastMessage = lastMessage, unreadCount = unreadCount, draft = draft?.takeIf { it.isNotBlank() })
 }
 
 fun ChatEntity.toDomain(): Chat {

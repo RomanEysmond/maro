@@ -26,7 +26,9 @@ interface ChatDao {
         ) AS unreadCount, (
             SELECT firstName FROM chat_members
             WHERE chat_members.chatId = chats.id AND chat_members.userId = chats.lastMessageSenderId
-        ) AS lastMessageSenderFirstName
+        ) AS lastMessageSenderFirstName, (
+            SELECT text FROM chat_drafts WHERE chat_drafts.chatId = chats.id
+        ) AS draft
         FROM chats ORDER BY updatedAt DESC
         """,
     )
@@ -59,6 +61,19 @@ interface ChatDao {
     @Query("DELETE FROM chat_members WHERE chatId NOT IN (:chats)")
     suspend fun deleteMembersExcept(chats: List<String>)
 
+    @Query("SELECT text FROM chat_drafts WHERE chatId = :chatId")
+    suspend fun getDraft(chatId: String): String?
+
+    @Upsert
+    suspend fun upsertDraft(draft: ChatDraftEntity)
+
+    @Query("DELETE FROM chat_drafts WHERE chatId = :chatId")
+    suspend fun deleteDraft(chatId: String)
+
+    /** Drafts of chats the user is no longer in (left a group, the chat is gone). */
+    @Query("DELETE FROM chat_drafts WHERE chatId NOT IN (:chats)")
+    suspend fun deleteDraftsExcept(chats: List<String>)
+
     /**
      * Replaces the local cache with the current server state in one go. The user's own read mark is kept when the
      * local one is newer: it is written to the server in the background and the server copy may not have caught up.
@@ -70,6 +85,7 @@ interface ChatDao {
         deleteExcept(chats.map { it.id })
         upsertMembers(members)
         deleteMembersExcept(chats.map { it.id })
+        deleteDraftsExcept(chats.map { it.id })
     }
 }
 
@@ -78,6 +94,8 @@ data class ChatWithUnread(
     val unreadCount: Int,
     /** Groups: who wrote the last message, for the "Anna: …" preview. */
     val lastMessageSenderFirstName: String? = null,
+    /** The unsent text typed in this chat, shown instead of the last message. */
+    val draft: String? = null,
 )
 
 private fun maxOfNullable(a: Long?, b: Long?): Long? = if (a == null) b else if (b == null) a else maxOf(a, b)

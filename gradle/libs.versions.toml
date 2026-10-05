@@ -75,6 +75,8 @@ compose-material-icons-extended = { group = "org.jetbrains.compose.material", na
 # --- JetBrains AndroidX forks (multiplatform) ---
 lifecycle-viewmodel-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+# SavedStateHandle in common code; already pulled in by navigation-compose and Koin, declared for direct use.
+lifecycle-viewmodel-savedstate = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-savedstate", version.ref = "lifecycle" }
 navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
 
 # --- Koin ---

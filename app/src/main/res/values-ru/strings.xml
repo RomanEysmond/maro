@@ -1,4 +1,13 @@
 <resources>
     <string name="notification_channel_messages">Сообщения</string>
     <string name="notification_new_message">Новое сообщение</string>
+    <string name="logout_title">Выйти из аккаунта?</string>
+    <string name="logout_confirm">Выйти</string>
+    <string name="logout_cancel">Отмена</string>
+    <plurals name="logout_unsent_messages">
+        <item quantity="one">У вас есть %1$d неотправленное сообщение, при выходе оно пропадёт</item>
+        <item quantity="few">У вас есть %1$d неотправленных сообщения, при выходе они пропадут</item>
+        <item quantity="many">У вас есть %1$d неотправленных сообщений, при выходе они пропадут</item>
+        <item quantity="other">У вас есть %1$d неотправленного сообщения, при выходе они пропадут</item>
+    </plurals>
 </resources>

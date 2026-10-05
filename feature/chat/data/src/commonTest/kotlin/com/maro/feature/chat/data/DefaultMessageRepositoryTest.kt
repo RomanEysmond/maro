@@ -7,6 +7,7 @@ import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import com.maro.core.database.chat.ChatEntity
+import com.maro.core.database.message.MessageEntity
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
@@ -324,5 +325,31 @@ class DefaultMessageRepositoryTest {
         repository.catchUp("chat")
 
         assertThat(remote.receipts).isEqualTo(listOf(listOf("chat", "me", ReceiptKind.DELIVERED, "in")))
+    }
+
+    @Test
+    fun `a draft is kept per chat and a blank one is removed`() = runTest {
+        repository.saveDraft("chat", "half a thought")
+        repository.saveDraft("other", "elsewhere")
+        assertThat(repository.draft("chat")).isEqualTo("half a thought")
+
+        repository.saveDraft("chat", "   ")
+
+        assertThat(repository.draft("chat")).isEqualTo("")
+        assertThat(repository.draft("other")).isEqualTo("elsewhere")
+    }
+
+    @Test
+    fun `unsent counts queued and failed messages, not delivered ones`() = runTest {
+        remote.sendResult = Result.Error(DataError.Network.NO_INTERNET)
+        repository.sendMessage("chat", "queued")
+        dao.upsertAll(
+            listOf(
+                MessageEntity("failed", "chat", "me", "x", 1L, MessageStatus.FAILED.name),
+                MessageEntity("sent", "chat", "me", "y", 2L, MessageStatus.SENT.name),
+            ),
+        )
+
+        assertThat(repository.unsentCount()).isEqualTo(2)
     }
 }

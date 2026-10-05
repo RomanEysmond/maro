@@ -10,14 +10,19 @@ import com.maro.feature.chatlist.domain.Chat
 import com.maro.feature.chatlist.domain.ChatRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DefaultChatRepository(
     private val chatDao: ChatDao,
     private val remote: ChatRemoteDataSource,
@@ -30,16 +35,23 @@ class DefaultChatRepository(
 
     // A StateFlow (not a plain Flow) so callers can read `.value` synchronously right after `sync()` returns,
     // instead of racing a separate collector of this same flow (see ChatListViewModel).
-    override val chats: StateFlow<List<Chat>> = chatDao.observeAllWithUnread(currentUser.userId.orEmpty())
-        .map { rows ->
-            val userId = currentUser.userId
-            rows.map { it.toDomain(userId) }
+    // Follows the signed-in user: this singleton outlives a sign-out, and the next account in the same process must
+    // get its own unread counts, not the previous user's.
+    override val chats: StateFlow<List<Chat>> = currentUser.userIdFlow
+        .flatMapLatest { userId ->
+            if (userId == null) {
+                flowOf(emptyList())
+            } else {
+                chatDao.observeAllWithUnread(userId).map { rows -> rows.map { it.toDomain(userId) } }
+            }
         }
         .stateIn(listenerScope, SharingStarted.Eagerly, emptyList())
 
     init {
         // Accelerator only: keeps Room fresh in the background. `sync()` is what the UI awaits and can retry.
-        remote.observeChats()
+        // Restarted for every signed-in user, stopped while nobody is: the query is bound to the uid.
+        currentUser.userIdFlow
+            .flatMapLatest { userId -> if (userId == null) emptyFlow() else remote.observeChats() }
             .onEach { result -> result.onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() }) } }
             .launchIn(listenerScope)
     }

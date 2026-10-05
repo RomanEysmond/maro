@@ -9,5 +9,5 @@ import org.koin.dsl.module
 val profilePresentationModule = module {
     viewModelOf(::ProfileViewModel)
     // Takes the mode (first-time setup or editing) as a parameter.
-    viewModel { params -> EditProfileViewModel(params.get(), get()) }
+    viewModel { params -> EditProfileViewModel(params.get(), get(), get()) }
 }

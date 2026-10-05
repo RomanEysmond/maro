@@ -1,5 +1,6 @@
 package com.maro.feature.auth.presentation.verifycode
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.hasSize
@@ -42,6 +43,7 @@ class VerifyCodeViewModelTest {
             route = VerifyCodeRoute(firstName = "Иван", lastName = "Иванов", phone = "+79001234567"),
             phoneAuthenticator = authenticator,
             userProfileRepository = profiles,
+            savedStateHandle = SavedStateHandle(),
         )
     }
 
@@ -136,5 +138,20 @@ class VerifyCodeViewModelTest {
             assertThat(awaitItem()).isEqualTo(VerifyCodeEvent.Authenticated(isNewUser = true))
         }
         assertThat(authenticator.verifiedCodes).hasSize(0)
+    }
+
+    @Test
+    fun `after the process was killed the typed code and the pending verification come back`() {
+        val savedState = SavedStateHandle()
+        val route = VerifyCodeRoute(firstName = "Иван", lastName = "Иванов", phone = "+79001234567")
+        authenticator.pendingVerificationId = "verification-1"
+        VerifyCodeViewModel(route, authenticator, profiles, savedState).onAction(VerifyCodeAction.OnCodeChange("123"))
+
+        // A new process: the authenticator has forgotten the verification.
+        val freshAuthenticator = FakePhoneAuthenticator()
+        val restored = VerifyCodeViewModel(route, freshAuthenticator, profiles, savedState)
+
+        assertThat(freshAuthenticator.pendingVerificationId).isEqualTo("verification-1")
+        assertThat(restored.state.value.code).isEqualTo("123")
     }
 }

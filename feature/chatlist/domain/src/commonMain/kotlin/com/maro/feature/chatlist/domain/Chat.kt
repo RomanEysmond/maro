@@ -63,6 +63,8 @@ data class Chat(
     val myReadAt: Long? = null,
     val peerReadAt: Long? = null,
     val peerDeliveredAt: Long? = null,
+    /** Text typed in this chat but not sent; the list shows it instead of the last message. */
+    val draft: String? = null,
 ) {
     /** What the list shows as the chat's name. */
     val displayName: String

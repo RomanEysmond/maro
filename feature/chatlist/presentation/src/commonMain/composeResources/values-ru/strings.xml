@@ -33,4 +33,5 @@
     <string name="new_chat_error_group_title">Название группы: от 1 до 64 символов</string>
     <string name="new_chat_error_no_members">Добавьте хотя бы одного человека</string>
     <string name="new_chat_error_too_many">В группе может быть не больше 50 человек</string>
+    <string name="chat_list_draft">Черновик:</string>
 </resources>

@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.component.InitialsAvatar
 import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.core.presentation.util.rememberTextFieldValue
 import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatMember
 import com.maro.feature.chat.presentation.generated.resources.Res
@@ -125,9 +126,10 @@ fun GroupInfoScreen(
             }
 
             if (state.canManage) {
+                val addQuery = rememberTextFieldValue(state.addQuery)
                 OutlinedTextField(
-                    value = state.addQuery,
-                    onValueChange = { onAction(GroupInfoAction.OnAddQueryChange(it)) },
+                    value = addQuery.value,
+                    onValueChange = { addQuery.value = it; onAction(GroupInfoAction.OnAddQueryChange(it.text)) },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(Res.string.group_info_add_hint)) },
                     prefix = { Text("@") },
@@ -174,9 +176,10 @@ fun GroupInfoScreen(
             onDismissRequest = { onAction(GroupInfoAction.OnRenameDismiss) },
             title = { Text(stringResource(Res.string.group_info_rename_title)) },
             text = {
+                val title = rememberTextFieldValue(draft)
                 OutlinedTextField(
-                    value = draft,
-                    onValueChange = { onAction(GroupInfoAction.OnRenameChange(it)) },
+                    value = title.value,
+                    onValueChange = { title.value = it; onAction(GroupInfoAction.OnRenameChange(it.text)) },
                     singleLine = true,
                 )
             },

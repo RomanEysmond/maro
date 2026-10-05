@@ -24,8 +24,13 @@ internal class WorkManagerOutboxScheduler(
             .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
     }
 
-    private companion object {
+    internal companion object {
         const val UNIQUE_WORK_NAME = "message-outbox"
-        const val BACKOFF_SECONDS = 30L
+        private const val BACKOFF_SECONDS = 30L
     }
+}
+
+/** Sign-out: the queued send of the previous user's messages must not run under the next account. */
+internal fun cancelOutbox(context: Context) {
+    WorkManager.getInstance(context).cancelUniqueWork(WorkManagerOutboxScheduler.UNIQUE_WORK_NAME)
 }

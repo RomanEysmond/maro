@@ -38,8 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.presentation.util.ObserveAsEvents
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import org.koin.compose.viewmodel.koinViewModel
+import com.maro.core.presentation.util.rememberTextFieldValue
 import com.maro.feature.auth.presentation.generated.resources.Res
 import com.maro.feature.auth.presentation.generated.resources.registration_back
 import com.maro.feature.auth.presentation.generated.resources.registration_continue
@@ -50,6 +49,8 @@ import com.maro.feature.auth.presentation.generated.resources.registration_phone
 import com.maro.feature.auth.presentation.generated.resources.registration_phone_title
 import com.maro.feature.auth.presentation.generated.resources.registration_title
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun RegistrationRoot(
@@ -133,9 +134,10 @@ fun RegistrationScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Поле для имени
+                val firstName = rememberTextFieldValue(state.firstName)
                 OutlinedTextField(
-                    value = state.firstName,
-                    onValueChange = { onAction(RegistrationAction.OnFirstNameChange(it)) },
+                    value = firstName.value,
+                    onValueChange = { firstName.value = it; onAction(RegistrationAction.OnFirstNameChange(it.text)) },
                     label = { Text(stringResource(Res.string.registration_first_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -146,9 +148,10 @@ fun RegistrationScreen(
                 )
 
                 // Поле для фамилии (необязательное)
+                val lastName = rememberTextFieldValue(state.lastName)
                 OutlinedTextField(
-                    value = state.lastName,
-                    onValueChange = { onAction(RegistrationAction.OnLastNameChange(it)) },
+                    value = lastName.value,
+                    onValueChange = { lastName.value = it; onAction(RegistrationAction.OnLastNameChange(it.text)) },
                     label = { Text(stringResource(Res.string.registration_last_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -159,9 +162,10 @@ fun RegistrationScreen(
                 )
 
                 // Поле для номера телефона
+                val phoneNumber = rememberTextFieldValue(state.phoneNumber)
                 OutlinedTextField(
-                    value = state.phoneNumber,
-                    onValueChange = { onAction(RegistrationAction.OnPhoneNumberChange(it)) },
+                    value = phoneNumber.value,
+                    onValueChange = { phoneNumber.value = it; onAction(RegistrationAction.OnPhoneNumberChange(it.text)) },
                     label = { Text(stringResource(Res.string.registration_phone)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
