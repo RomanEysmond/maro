@@ -7,5 +7,7 @@ kotlin {
         implementation(project(":core:domain"))
         implementation(libs.lifecycle.runtime.compose)
         implementation(libs.kotlinx.coroutines.core)
+        // LocalDate is part of the date formatting API the features use.
+        api(libs.kotlinx.datetime)
     }
 }

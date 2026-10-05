@@ -36,6 +36,7 @@ internal class MessageSynchronizer(
     private val remote: MessageRemoteDataSource,
     private val connectivity: ConnectivityObserver,
     private val retryDelay: Duration = RETRY_DELAY,
+    private val deliveryReporter: DeliveryReporter = DeliveryReporter.None,
 ) {
     // One sync step per chat at a time: two catch-ups that both start from "nothing synced" would each fetch
     // "the latest page" at different moments, and those two pages need not touch each other.
@@ -56,7 +57,9 @@ internal class MessageSynchronizer(
      * Fetches everything after the newest synced message, page by page. A chat that was never synced gets its
      * latest page only; the history before it is loaded when the user scrolls ([loadOlder]).
      */
-    suspend fun catchUp(chatId: String): EmptyResult<DataError.Network> = withChatLock(chatId) { catchUpLocked(chatId) }
+    suspend fun catchUp(chatId: String): EmptyResult<DataError.Network> =
+        withChatLock(chatId) { catchUpLocked(chatId) }
+            .also { if (it is Result.Success) deliveryReporter.messagesArrived(chatId) }
 
     /** One page of history before the oldest synced message; `true` once the start of the chat is reached. */
     suspend fun loadOlder(chatId: String): Result<Boolean, DataError.Network> = withChatLock(chatId) { loadOlderLocked(chatId) }
@@ -143,6 +146,7 @@ internal class MessageSynchronizer(
                 when (update) {
                     is Result.Success -> {
                         withChatLock(chatId) { save(chatId, update.data) }
+                        deliveryReporter.messagesArrived(chatId)
                         true
                     }
                     is Result.Error -> {

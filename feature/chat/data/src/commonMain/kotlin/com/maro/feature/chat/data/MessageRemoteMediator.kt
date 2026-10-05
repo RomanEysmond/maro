@@ -4,7 +4,7 @@ import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
-import com.maro.core.database.message.MessageEntity
+import com.maro.core.database.message.MessageWithReceipts
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.LoadMessagesException
 
@@ -16,11 +16,11 @@ import com.maro.feature.chat.domain.LoadMessagesException
 internal class MessageRemoteMediator(
     private val chatId: String,
     private val synchronizer: MessageSynchronizer,
-) : RemoteMediator<Int, MessageEntity>() {
+) : RemoteMediator<Int, MessageWithReceipts>() {
 
     override suspend fun initialize(): InitializeAction = InitializeAction.SKIP_INITIAL_REFRESH
 
-    override suspend fun load(loadType: LoadType, state: PagingState<Int, MessageEntity>): MediatorResult =
+    override suspend fun load(loadType: LoadType, state: PagingState<Int, MessageWithReceipts>): MediatorResult =
         when (loadType) {
             LoadType.REFRESH -> MediatorResult.Success(endOfPaginationReached = false)
             LoadType.PREPEND -> MediatorResult.Success(endOfPaginationReached = true)

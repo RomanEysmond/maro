@@ -2,6 +2,7 @@ package com.maro.feature.chat.data
 
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
+import com.maro.core.database.message.MessageWithReceipts
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageStatus
 
@@ -16,6 +17,22 @@ internal fun MessageEntity.toDomain(currentUserId: String?): Message = Message(
     status = runCatching { MessageStatus.valueOf(status) }.getOrDefault(MessageStatus.FAILED),
     isOutgoing = senderId == currentUserId,
 )
+
+/**
+ * An outgoing message the server has is SENT until the other side's marks pass it: delivered first, then read
+ * (a read message is delivered too). Marks and message times are both server timestamps.
+ */
+internal fun MessageWithReceipts.toDomain(currentUserId: String?): Message {
+    val base = message.toDomain(currentUserId)
+    if (!base.isOutgoing || base.status != MessageStatus.SENT) return base
+    val sentAt = message.createdAt
+    val status = when {
+        (peerReadAt ?: Long.MIN_VALUE) >= sentAt -> MessageStatus.READ
+        (peerDeliveredAt ?: Long.MIN_VALUE) >= sentAt -> MessageStatus.DELIVERED
+        else -> MessageStatus.SENT
+    }
+    return base.copy(status = status)
+}
 
 internal fun RemoteMessage.toEntity(): MessageEntity = MessageEntity(
     id = id,

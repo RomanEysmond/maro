@@ -53,4 +53,24 @@ interface MessageRemoteDataSource {
      * current list, not a delta.
      */
     fun observeNewer(chatId: String, after: MessageCursor?): Flow<Result<List<RemoteMessage>, DataError.Network>>
+
+    /**
+     * Moves [userId]'s read or delivered mark in the chat to the message [messageId] sent at [atMillis]
+     * (`lastRead` / `lastDelivered` on the chat: one entry per participant, never a flag per message).
+     */
+    suspend fun reportReceipt(
+        chatId: String,
+        userId: String,
+        kind: ReceiptKind,
+        messageId: String,
+        atMillis: Long,
+    ): EmptyResult<DataError.Network>
+}
+
+enum class ReceiptKind {
+    /** The user's device has the message. */
+    DELIVERED,
+
+    /** The user has seen it. */
+    READ,
 }

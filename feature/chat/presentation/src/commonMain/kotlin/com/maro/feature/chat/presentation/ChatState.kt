@@ -19,6 +19,8 @@ data class ChatState(
     val isCaughtUp: Boolean = false,
     /** Syncing gave up (for example no access to the chat). */
     val error: UiText? = null,
+    /** The other side is typing right now. */
+    val isPeerTyping: Boolean = false,
 ) {
     val canSend: Boolean
         get() = input.isNotBlank()

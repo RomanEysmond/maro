@@ -20,6 +20,8 @@ navigation = "2.9.2"
 koin = "4.2.2"
 coroutines = "1.10.2"
 serialization = "1.9.0"
+# Stage 6a: message times and date separators in common code (KMP); kotlin.time.Instant + time zones.
+datetime = "0.8.0"
 
 # Local database (stage 3): Room 3.0 is Kotlin-first/KMP-native (new "androidx.room3" coordinates,
 # androidx.room 2.x is in maintenance mode). KSP version is independent of the Kotlin version since KSP2.
@@ -86,6 +88,7 @@ kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "datetime" }
 
 # --- Android-only (used by :app) ---
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

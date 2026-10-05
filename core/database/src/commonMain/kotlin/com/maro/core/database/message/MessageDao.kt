@@ -3,19 +3,48 @@ package com.maro.core.database.message
 import androidx.paging.PagingSource
 import androidx.room3.Dao
 import androidx.room3.DaoReturnTypeConverters
+import androidx.room3.Embedded
 import androidx.room3.Insert
 import androidx.room3.Query
 import androidx.room3.Transaction
 import androidx.room3.Upsert
+import kotlinx.coroutines.flow.Flow
 import androidx.room3.paging.PagingSourceDaoReturnTypeConverter
 
 @Dao
 // Room 3 knows PagingSource only through this converter from room3-paging.
 @DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter::class)
 interface MessageDao {
-    /** Newest first: the chat screen draws the list bottom-up and pages towards older messages. */
-    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY createdAt DESC, id DESC")
-    fun pagingSource(chatId: String): PagingSource<Int, MessageEntity>
+    /**
+     * Newest first: the chat screen draws the list bottom-up and pages towards older messages. Each row comes with
+     * the other side's read / delivered marks, so a change of either refreshes the statuses on screen.
+     */
+    @Query(
+        """
+        SELECT messages.*, chats.peerReadAt AS peerReadAt, chats.peerDeliveredAt AS peerDeliveredAt
+        FROM messages LEFT JOIN chats ON chats.id = messages.chatId
+        WHERE messages.chatId = :chatId
+        ORDER BY messages.createdAt DESC, messages.id DESC
+        """,
+    )
+    fun pagingSource(chatId: String): PagingSource<Int, MessageWithReceipts>
+
+    /** The newest message someone else sent in the chat, as cached. */
+    @Query(
+        """
+        SELECT * FROM messages WHERE chatId = :chatId AND senderId != :userId
+        ORDER BY createdAt DESC, id DESC LIMIT 1
+        """,
+    )
+    fun observeNewestIncoming(chatId: String, userId: String): Flow<MessageEntity?>
+
+    @Query(
+        """
+        SELECT * FROM messages WHERE chatId = :chatId AND senderId != :userId
+        ORDER BY createdAt DESC, id DESC LIMIT 1
+        """,
+    )
+    suspend fun getNewestIncoming(chatId: String, userId: String): MessageEntity?
 
     @Insert
     suspend fun insert(message: MessageEntity)
@@ -53,3 +82,9 @@ interface MessageDao {
         upsertSyncState(state)
     }
 }
+
+data class MessageWithReceipts(
+    @Embedded val message: MessageEntity,
+    val peerReadAt: Long?,
+    val peerDeliveredAt: Long?,
+)

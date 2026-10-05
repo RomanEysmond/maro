@@ -22,4 +22,13 @@ data class ChatEntity(
     val lastMessageAt: Long?,
     /** Epoch millis; drives the list order and is bumped by every change to the chat. */
     val updatedAt: Long,
+    /**
+     * Epoch millis of the newest message the signed-in user has read (their `last_read_message_id`): everything
+     * from others after it is unread. Set locally as soon as the chat is read, so it may run ahead of the server.
+     */
+    val myReadAt: Long? = null,
+    /** Epoch millis up to which the other side has read: the user's messages up to here show as READ. */
+    val peerReadAt: Long? = null,
+    /** Epoch millis up to which the other side's device has received: the user's messages up to here are DELIVERED. */
+    val peerDeliveredAt: Long? = null,
 )

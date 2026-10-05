@@ -5,6 +5,12 @@ enum class MessageStatus {
     SENDING,
     SENT,
 
+    /** The other side's device has received it (outgoing messages only). */
+    DELIVERED,
+
+    /** The other side has read it (in a group: at least one participant has). */
+    READ,
+
     /** Gave up after a permanent failure or too many attempts; the user can retry by hand. */
     FAILED,
 }
