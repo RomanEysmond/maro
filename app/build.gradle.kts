@@ -1,6 +1,20 @@
+import java.util.Properties
+
 plugins {
     id("maro.android.application")
     alias(libs.plugins.google.services)
+}
+
+// The hosted push server for release builds: `maro.pushServerUrl=https://...` in local.properties (not in git, the
+// repository is public). Without it release builds have no pushes; messages still arrive through sync.
+val releasePushServerUrl: String = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
+    ?.getProperty("maro.pushServerUrl")
+    ?.trim()
+    .orEmpty()
+require(releasePushServerUrl.isEmpty() || releasePushServerUrl.startsWith("https://")) {
+    "maro.pushServerUrl must be an https:// address"
 }
 
 android {
@@ -27,8 +41,7 @@ android {
             buildConfigField("String", "PUSH_SERVER_URL", "\"http://10.0.2.2:8080\"")
         }
         release {
-            // No hosted push server yet: pushes are off, messages still arrive through sync.
-            buildConfigField("String", "PUSH_SERVER_URL", "\"\"")
+            buildConfigField("String", "PUSH_SERVER_URL", "\"$releasePushServerUrl\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

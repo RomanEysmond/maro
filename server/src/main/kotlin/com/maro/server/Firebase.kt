@@ -24,9 +24,25 @@ fun interface TokenVerifier {
     suspend fun verify(idToken: String): String?
 }
 
+/** Where the service account comes from: never from the image or the repository, only from the environment. */
+sealed interface CredentialsSource {
+    /** The key file's content in [CREDENTIALS_JSON_ENV]: for hostings that take secrets as variables, not files. */
+    data class Json(val json: String) : CredentialsSource
+
+    /** Application Default Credentials: GOOGLE_APPLICATION_CREDENTIALS (a key file) or the hosting's own account. */
+    data object ApplicationDefault : CredentialsSource
+
+    companion object {
+        const val CREDENTIALS_JSON_ENV = "FIREBASE_CREDENTIALS_JSON"
+
+        fun from(env: (String) -> String?): CredentialsSource =
+            env(CREDENTIALS_JSON_ENV)?.takeIf { it.isNotBlank() }?.let(::Json) ?: ApplicationDefault
+    }
+}
+
 /**
  * The Admin SDK bypasses Security Rules, so everything it reads or writes is checked by [NotifyService] first.
- * Credentials come from GOOGLE_APPLICATION_CREDENTIALS (a service account key file that never goes into git).
+ * Credentials: see [CredentialsSource]; the key never goes into git or the Docker image.
  */
 class FirebaseBackend private constructor(app: FirebaseApp) {
     val tokenVerifier: TokenVerifier = FirebaseTokenVerifier(FirebaseAuth.getInstance(app))
@@ -34,9 +50,15 @@ class FirebaseBackend private constructor(app: FirebaseApp) {
     val pushSender: PushSender = FcmPushSender(FirebaseMessaging.getInstance(app))
 
     companion object {
-        fun create(): FirebaseBackend {
+        fun create(source: CredentialsSource = CredentialsSource.from(System::getenv)): FirebaseBackend {
+            val credentials = when (source) {
+                is CredentialsSource.Json -> GoogleCredentials.fromStream(source.json.byteInputStream())
+                CredentialsSource.ApplicationDefault -> GoogleCredentials.getApplicationDefault()
+            }
+            // Which source, never the key itself.
+            log.info("credentials: {}", if (source is CredentialsSource.Json) CredentialsSource.CREDENTIALS_JSON_ENV else "default")
             val options = FirebaseOptions.builder()
-                .setCredentials(GoogleCredentials.getApplicationDefault())
+                .setCredentials(credentials)
                 .build()
             return FirebaseBackend(FirebaseApp.initializeApp(options))
         }

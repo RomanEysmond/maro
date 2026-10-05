@@ -240,6 +240,18 @@ server/                   мини-сервер пушей (Ktor + Firebase Admi
   часы компьютера разработчика отставали на 11 часов (свежий токен для него «из будущего»).
   Не проверено на устройстве: лимит 50 участников и чужое @username при добавлении (только юнит-тестами).
 
+- **Этап 6в** (ветка `stage-6c-docker`, не закоммичен; сборка debug и release, 171 юнит-тест приложения и 13 тестов сервера
+  зелёные; образ собран (≈400 МБ) и запущен в Docker Desktop с ключом из `FIREBASE_CREDENTIALS_JSON` и лимитом памяти
+  384 МБ: процесс не от root, `/health` отвечает, пуш в группе через контейнер дошёл («Trip» / «Ivan: dodo»)).
+  Новых зависимостей нет, хостинг не выбран. `server/Dockerfile`: две стадии (`eclipse-temurin:17-jdk` →
+  `./gradlew -p server installDist`, `eclipse-temurin:17-jre` → `bin/maro-server` не от root, `JAVA_OPTS=-XX:MaxRAMPercentage=75`,
+  `PORT`), контекст сборки — корень репозитория (общий каталог версий и wrapper); `.dockerignore` пропускает только `gradlew`,
+  `gradle/`, `server/` и никогда `*.json`; в образе у `gradlew` снимаются CRLF (чекаут на Windows), иначе Linux его не запускает. Ключ: `CredentialsSource` — `FIREBASE_CREDENTIALS_JSON` (содержимое ключа) или
+  Application Default Credentials (`GOOGLE_APPLICATION_CREDENTIALS` / сервисный аккаунт хостинга); в лог — только способ.
+  Адрес для release — `maro.pushServerUrl` в `local.properties` (не в git; только `https://`, иначе сборка падает; пусто —
+  пушей нет). Инструкция — `server/README.md` (EN) и `server/README.ru.md` (RU): Docker, требования к хостингу, Render /
+  VPS + Caddy / Cloud Run.
+
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
@@ -268,7 +280,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 6. Разбит на три части (свои ветки и PR):
    6а. ✅ Время/даты, статусы доставки и прочтения (`last_read_message_id`), непрочитанные, «печатает…».
    6б. ✅ Группы: создать (до 50 участников), название, добавить людей (создатель), выйти (любой); «прочитано» — хотя бы одним.
-   6в. Хостинг мини-сервера: пока только `Dockerfile` и инструкция, сам хостинг — позже.
+   6в. ✅ Хостинг мини-сервера: `Dockerfile` и инструкция (`server/README.md`, `README.ru.md`); сам хостинг — позже.
 7. Полировка: SQLCipher/Keystore, локализация RU/EN, ktlint/detekt, a11y, R8 для release, `POST_NOTIFICATIONS`, SavedStateHandle там, где нужно.
 8. Медиа (последним; хранилище выбираем к тому времени — Firebase Storage требует Blaze).
 
@@ -296,8 +308,8 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 - ktlint/detekt не настроены (detekt может не поддерживать Kotlin 2.3); `lintDebug` для KMP-модулей не гонялся.
 - Ограничение Firebase API-ключа в Google Cloud Console не настроено (необязательно; ключ не секрет, защиту дают Security Rules).
 - Отсутствуют: iOS-приложение, DataStore.
-- Пуши: сервер пока только на машине разработчика — release-сборка без пушей (`PUSH_SERVER_URL` пустой); для release
-  нужен хостинг с HTTPS. iOS-пушей нет (нужны APNs, аккаунт Apple Developer и Mac). Если сервер недоступен, вызов
+- Пуши: сервер пока только на машине разработчика — release-сборка без пушей, пока в `local.properties` нет
+  `maro.pushServerUrl`; для release нужен хостинг с HTTPS. iOS-пушей нет (нужны APNs, аккаунт Apple Developer и Mac). Если сервер недоступен, вызов
   `/v1/notify` не повторяется (сообщение всё равно придёт через синхронизацию, просто без уведомления).
 - `DefaultChatRepository` и `MessageRepository` берут uid пользователя один раз при создании синглтона: после выхода и входа
   другим аккаунтом в том же процессе счётчик непрочитанных и слушатели считают по старому uid до перезапуска приложения.
