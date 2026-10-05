@@ -267,7 +267,21 @@ server/                   мини-сервер пушей (Ktor + Firebase Admi
   (`onClickLabel` «Повторить отправку») вместо значка 20dp. В `SettingsScreen` встретились два `Res` — дизайн-системы
   (`DesignRes`, логотип) и модуля.
   Не проверено: экран регистрации на английском (нужен выход из аккаунта), прочтение пузыря настоящим TalkBack (дерево
-  доступности не проверялось им), даты прошлых лет на английском (покрыто кодом, данных на эмуляторе нет).
+  доступности не проверялось им), даты прошлых лет на английском проверены в 7б («October 2»).
+
+- **Этап 7б** (ветка `stage-7b-release`, не закоммичен; debug, release (APK ~10 МБ вместо ~39 МБ) и AAB собираются, 171
+  юнит-тест зелёный; release-APK на эмуляторе: запуск, список чатов, группа и «О группе», отправка, поиск по @username,
+  переход в личный чат, сохранение профиля, офлайн-сообщение после `am kill` — WorkManager сам поднял процесс и
+  `OutboxWorker` отправил его). Новых зависимостей нет. Release: `isMinifyEnabled` + `isShrinkResources`; своих правил R8
+  не понадобилось (`proguard-rules.pro` пуст: Firebase, Room, serialization, Ktor, Koin, WorkManager приносят свои;
+  Firestore разбирается вручную, без рефлексии). Подпись — `maro.signing.storeFile` / `storePassword` / `keyAlias` /
+  `keyPassword` в `local.properties`; без них release подписывается debug-ключом с предупреждением Gradle
+  (`maro: no release key…`) — только для проверки. Чтение `local.properties` в `app/build.gradle.kts` — общий
+  `localProperty()` (им же читается `maro.pushServerUrl`). `.gitignore` — `*.jks`, `*.keystore`. Инструкция —
+  `docs/RELEASE.md` / `docs/RELEASE.ru.md`: ключ, `local.properties`, SHA-отпечатки в Firebase (`signingReport`; для Play —
+  ещё app signing key из Play Console), APK/AAB, `versionCode`, `mapping.txt`. Распространение (Play или APK) не выбрано.
+  Не проверено: release с настоящим ключом (ключа ещё нет; вход по SMS с ним потребует его SHA в Firebase), приём пуша
+  release-сборкой.
 
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
@@ -300,7 +314,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
    6в. ✅ Хостинг мини-сервера: `Dockerfile` и инструкция (`server/README.md`, `README.ru.md`); сам хостинг — позже.
 7. Полировка, по частям (свои ветки и PR):
    7а. ✅ Строки в ресурсы, локализация EN (базовый) / RU по языку системы, доступность.
-   7б. Release: R8 + правила, подпись (ключ вне репозитория).
+   7б. ✅ Release: R8, подпись из `local.properties` (ключ вне репозитория), `docs/RELEASE.md`.
    7в. Очистка Room при выходе, uid при смене аккаунта, `SecureStorage` на Keystore, SavedStateHandle для черновиков.
    7г. ktlint/detekt, lint для KMP-модулей.
    SQLCipher отложен (до E2E): Room 3 работает через KMP-драйверы, SQLCipher — через `SupportSQLiteOpenHelper`.
@@ -344,5 +358,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 - Локализация: время всегда 24-часовое, дата рождения — `дд.мм.гггг` в обоих языках; пункт «Язык» в профиле только
   показывает текущий язык (выбор — в настройках Android); `SettingsScreen` и пункты «Чаты»/«Уведомления»/«Тёмная тема»
   в профиле — по-прежнему статичные заглушки этапа 1.
+- Release-ключа пока нет: release подписывается debug-ключом. Создать ключ до первой раздачи сборки другим людям
+  (`docs/RELEASE.md`) и добавить его SHA-1/SHA-256 в Firebase, иначе вход по SMS в release не заработает.
 - Выход из аккаунта не чистит Room (чаты и сообщения прошлого пользователя остаются в базе, хотя чужие чаты не показываются:
   список заменяется данными сервера).

@@ -26,3 +26,7 @@ google-services.json
 
 # Build outputs of every module
 build/
+
+# Signing keys (kept outside the repository; this is a safety net)
+*.jks
+*.keystore

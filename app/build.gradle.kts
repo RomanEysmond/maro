@@ -5,20 +5,41 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-// The hosted push server for release builds: `maro.pushServerUrl=https://...` in local.properties (not in git, the
-// repository is public). Without it release builds have no pushes; messages still arrive through sync.
-val releasePushServerUrl: String = rootProject.file("local.properties")
-    .takeIf { it.exists() }
-    ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
-    ?.getProperty("maro.pushServerUrl")
-    ?.trim()
-    .orEmpty()
+// Machine-local settings: local.properties is not in git (the repository is public).
+val localProperties: Properties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+
+fun localProperty(name: String): String? = localProperties.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
+
+// The hosted push server for release builds: `maro.pushServerUrl=https://...`. Without it release builds have no
+// pushes; messages still arrive through sync.
+val releasePushServerUrl: String = localProperty("maro.pushServerUrl").orEmpty()
 require(releasePushServerUrl.isEmpty() || releasePushServerUrl.startsWith("https://")) {
     "maro.pushServerUrl must be an https:// address"
 }
 
+// The release key: `maro.signing.storeFile` (path to the keystore, outside the repository), `maro.signing.storePassword`,
+// `maro.signing.keyAlias`, `maro.signing.keyPassword`. Without them a release build is signed with the debug key: good
+// for checking R8 on a device, never for distribution (see docs/RELEASE.md).
+val releaseSigning: Map<String, String>? = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .associateWith { localProperty("maro.signing.$it") }
+    .takeIf { values -> values.values.all { it != null } }
+    ?.mapValues { it.value!! }
+
 android {
     namespace = "com.maro"
+
+    signingConfigs {
+        if (releaseSigning != null) {
+            create("release") {
+                storeFile = file(releaseSigning.getValue("storeFile"))
+                storePassword = releaseSigning.getValue("storePassword")
+                keyAlias = releaseSigning.getValue("keyAlias")
+                keyPassword = releaseSigning.getValue("keyPassword")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.maro"
@@ -42,7 +63,14 @@ android {
         }
         release {
             buildConfigField("String", "PUSH_SERVER_URL", "\"$releasePushServerUrl\"")
-            isMinifyEnabled = false
+            signingConfig = if (releaseSigning != null) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("maro: no release key in local.properties, the release build is signed with the debug key")
+                signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
