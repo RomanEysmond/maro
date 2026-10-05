@@ -66,7 +66,7 @@ class ChatViewModel(
             .onEach { status -> _state.update { it.with(status) } }
             .launchIn(viewModelScope)
         typingRepository.typingUsers(chatId)
-            .onEach { typing -> _state.update { it.copy(isPeerTyping = typing.isNotEmpty()) } }
+            .onEach { typing -> _state.update { it.copy(typingUserIds = typing) } }
             .launchIn(viewModelScope)
         // While the chat is on screen, every new message from the other side is read as soon as it arrives.
         isVisible
@@ -93,6 +93,9 @@ class ChatViewModel(
             ChatAction.OnSendClick -> send()
             is ChatAction.OnRetryClick -> viewModelScope.launch { repository.retryMessage(action.messageId) }
             ChatAction.OnBackClick -> viewModelScope.launch { _events.send(ChatEvent.NavigateBack) }
+            ChatAction.OnHeaderClick -> if (_state.value.header?.isGroup == true) {
+                viewModelScope.launch { _events.send(ChatEvent.NavigateToGroupInfo(chatId)) }
+            }
         }
     }
 

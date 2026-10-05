@@ -19,9 +19,16 @@ data class ChatState(
     val isCaughtUp: Boolean = false,
     /** Syncing gave up (for example no access to the chat). */
     val error: UiText? = null,
-    /** The other side is typing right now. */
-    val isPeerTyping: Boolean = false,
+    /** Who else is typing right now (in a direct chat: the other person or nobody). */
+    val typingUserIds: Set<String> = emptySet(),
 ) {
+    val isPeerTyping: Boolean
+        get() = typingUserIds.isNotEmpty()
+
+    /** First names of who is typing, for "Anna is typing…" in a group. */
+    val typingNames: List<String>
+        get() = typingUserIds.mapNotNull { id -> header?.members?.firstOrNull { it.id == id }?.firstName }
+
     val canSend: Boolean
         get() = input.isNotBlank()
 }

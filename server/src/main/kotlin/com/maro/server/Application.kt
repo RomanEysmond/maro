@@ -50,6 +50,7 @@ fun Application.maroModule(notifyService: NotifyService, tokenVerifier: TokenVer
                 ?.trim()
             val uid = idToken?.takeIf { it.isNotEmpty() }?.let { tokenVerifier.verify(it) }
             if (uid == null) {
+                log.warn("notify refused: no valid ID token")
                 call.respond(HttpStatusCode.Unauthorized)
                 return@post
             }
@@ -66,8 +67,14 @@ fun Application.maroModule(notifyService: NotifyService, tokenVerifier: TokenVer
                     log.info("notify chat={} message={} devices={}", request.chatId, request.messageId, result.devices)
                     call.respond(NotifyResponse(result.devices))
                 }
-                NotifyResult.ChatNotFound, NotifyResult.MessageNotFound -> call.respond(HttpStatusCode.NotFound)
-                NotifyResult.Forbidden -> call.respond(HttpStatusCode.Forbidden)
+                NotifyResult.ChatNotFound, NotifyResult.MessageNotFound -> {
+                    log.warn("notify refused: not found chat={} message={}", request.chatId, request.messageId)
+                    call.respond(HttpStatusCode.NotFound)
+                }
+                NotifyResult.Forbidden -> {
+                    log.warn("notify refused: forbidden chat={} message={}", request.chatId, request.messageId)
+                    call.respond(HttpStatusCode.Forbidden)
+                }
             }
         }
     }

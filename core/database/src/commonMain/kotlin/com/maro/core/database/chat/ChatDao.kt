@@ -21,8 +21,12 @@ interface ChatDao {
         SELECT chats.*, (
             SELECT COUNT(*) FROM messages
             WHERE messages.chatId = chats.id AND messages.senderId != :userId
+              AND messages.type = 'text'
               AND messages.createdAt > COALESCE(chats.myReadAt, 0)
-        ) AS unreadCount
+        ) AS unreadCount, (
+            SELECT firstName FROM chat_members
+            WHERE chat_members.chatId = chats.id AND chat_members.userId = chats.lastMessageSenderId
+        ) AS lastMessageSenderFirstName
         FROM chats ORDER BY updatedAt DESC
         """,
     )
@@ -42,21 +46,38 @@ interface ChatDao {
     @Query("DELETE FROM chats WHERE id NOT IN (:chats)")
     suspend fun deleteExcept(chats: List<String>)
 
+    /** Everyone ever in the chat, current members first. */
+    @Query("SELECT * FROM chat_members WHERE chatId = :chatId ORDER BY isMember DESC, firstName, lastName")
+    fun observeMembers(chatId: String): Flow<List<ChatMemberEntity>>
+
+    @Query("SELECT * FROM chat_members WHERE chatId = :chatId")
+    suspend fun getMembers(chatId: String): List<ChatMemberEntity>
+
+    @Upsert
+    suspend fun upsertMembers(members: List<ChatMemberEntity>)
+
+    @Query("DELETE FROM chat_members WHERE chatId NOT IN (:chats)")
+    suspend fun deleteMembersExcept(chats: List<String>)
+
     /**
      * Replaces the local cache with the current server state in one go. The user's own read mark is kept when the
      * local one is newer: it is written to the server in the background and the server copy may not have caught up.
      */
     @Transaction
-    suspend fun replaceAll(chats: List<ChatEntity>) {
+    suspend fun replaceAll(chats: List<ChatEntity>, members: List<ChatMemberEntity> = emptyList()) {
         val localReadAt = getAll().associate { it.id to it.myReadAt }
         upsertAll(chats.map { chat -> chat.copy(myReadAt = maxOfNullable(chat.myReadAt, localReadAt[chat.id])) })
         deleteExcept(chats.map { it.id })
+        upsertMembers(members)
+        deleteMembersExcept(chats.map { it.id })
     }
 }
 
 data class ChatWithUnread(
     @Embedded val chat: ChatEntity,
     val unreadCount: Int,
+    /** Groups: who wrote the last message, for the "Anna: …" preview. */
+    val lastMessageSenderFirstName: String? = null,
 )
 
 private fun maxOfNullable(a: Long?, b: Long?): Long? = if (a == null) b else if (b == null) a else maxOf(a, b)

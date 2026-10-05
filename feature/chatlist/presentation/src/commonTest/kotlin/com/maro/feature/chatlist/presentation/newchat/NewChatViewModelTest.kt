@@ -10,7 +10,7 @@ import assertk.assertions.isTrue
 import com.maro.core.domain.util.Result
 import com.maro.feature.chatlist.domain.FoundUser
 import com.maro.feature.chatlist.domain.NewChatError
-import com.maro.feature.chatlist.domain.NewChatRepository
+import com.maro.feature.chatlist.presentation.fakes.FakeNewChatRepository
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -23,23 +23,6 @@ import kotlinx.coroutines.test.setMain
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NewChatViewModelTest {
-
-    private class FakeNewChatRepository : NewChatRepository {
-        var findResult: Result<FoundUser, NewChatError> = Result.Error(NewChatError.USER_NOT_FOUND)
-        var startResult: Result<String, NewChatError> = Result.Success("chat-1")
-        val lookups = mutableListOf<String>()
-        var started: FoundUser? = null
-
-        override suspend fun findUser(username: String): Result<FoundUser, NewChatError> {
-            lookups += username
-            return findResult
-        }
-
-        override suspend fun startChat(user: FoundUser): Result<String, NewChatError> {
-            started = user
-            return startResult
-        }
-    }
 
     private val anna = FoundUser("uid-a", "Анна", "Петрова", "anna_p")
     private lateinit var repository: FakeNewChatRepository

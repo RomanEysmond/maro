@@ -15,23 +15,69 @@ enum class MessageStatus {
     FAILED,
 }
 
+enum class SystemEventKind {
+    CREATED,
+    ADDED,
+    LEFT,
+    RENAMED,
+}
+
+/**
+ * What happened to a group, told in the conversation ("Anna added Peter"). Only ids and data: the text is put
+ * together on the device, in its language, with the names it knows.
+ */
+data class SystemEvent(
+    val kind: SystemEventKind,
+    /** Who the event is about (added people); empty for the others. */
+    val targetIds: List<String> = emptyList(),
+    /** The title the group got (created, renamed). */
+    val title: String? = null,
+)
+
 data class Message(
     /** The `client_id` (UUID): also the id of the document on the server. */
     val id: String,
     val chatId: String,
+    /** For a system message: who did it. */
     val senderId: String,
+    /** Empty for a system message. */
     val text: String,
     /** Epoch millis. */
     val createdAt: Long,
     val status: MessageStatus,
     val isOutgoing: Boolean,
+    /** Set for a system message (group events), `null` for an ordinary one. */
+    val systemEvent: SystemEvent? = null,
 )
 
-/** What the conversation screen shows in its top bar. */
+data class ChatMember(
+    val id: String,
+    val firstName: String,
+    val lastName: String,
+    val username: String?,
+    /** `false` for someone who has left the group; they stay known so the history keeps their name. */
+    val isMember: Boolean = true,
+) {
+    val fullName: String
+        get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
+}
+
+/** What the conversation screen shows in its top bar, and the group screen about the group. */
 data class ChatHeader(
-    val participantName: String,
+    /** The other person's name in a direct chat, the group's title in a group. */
+    val title: String,
     val initials: String,
-)
+    val isGroup: Boolean = false,
+    /** Everyone known on the chat, current members first. */
+    val members: List<ChatMember> = emptyList(),
+    /** Groups: the user created it (or got the rights when the creator left) and may rename it and add people. */
+    val canManage: Boolean = false,
+    /** Groups: who holds the creator's rights. */
+    val createdBy: String? = null,
+) {
+    val memberCount: Int
+        get() = members.count { it.isMember }
+}
 
 object MessageRules {
     const val MAX_LENGTH = 4000

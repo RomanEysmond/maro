@@ -157,12 +157,23 @@ internal class FirestoreMessageRemoteDataSource(
         // Only real server timestamps: the messages are written in transactions, so there are no local
         // estimates to see here, and a guessed time must never become a cursor.
         val createdAt = getTimestamp(FIELD_CREATED_AT, ServerTimestampBehavior.NONE) ?: return null
+        val isSystem = getString("type") == "system"
         return RemoteMessage(
             id = id,
             chatId = chatId,
             senderId = getString("senderId") ?: return null,
-            text = getString("text") ?: return null,
+            text = if (isSystem) "" else getString("text") ?: return null,
             createdAtMicros = createdAt.seconds * MICROS_PER_SECOND + createdAt.nanoseconds / NANOS_PER_MICRO,
+            systemEvent = if (isSystem) toSystemEvent() ?: return null else null,
+        )
+    }
+
+    private fun DocumentSnapshot.toSystemEvent(): RemoteSystemEvent? {
+        val event = get("event") as? Map<*, *> ?: return null
+        return RemoteSystemEvent(
+            kind = event["kind"] as? String ?: return null,
+            targets = (event["targets"] as? List<*>)?.filterIsInstance<String>().orEmpty(),
+            title = event["title"] as? String,
         )
     }
 

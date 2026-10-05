@@ -1,5 +1,8 @@
 package com.maro.feature.chatlist.presentation.newchat
 
+import com.maro.feature.chatlist.presentation.generated.resources.new_chat_new_group
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,6 +57,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun NewChatRoot(
     onNavigateBack: () -> Unit,
     onOpenChat: (chatId: String) -> Unit,
+    onNewGroup: () -> Unit,
     viewModel: NewChatViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -62,6 +66,7 @@ fun NewChatRoot(
         when (event) {
             NewChatEvent.NavigateBack -> onNavigateBack()
             is NewChatEvent.NavigateToChat -> onOpenChat(event.chatId)
+            NewChatEvent.NavigateToNewGroup -> onNewGroup()
         }
     }
 
@@ -93,6 +98,23 @@ fun NewChatScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAction(NewChatAction.OnNewGroupClick) }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Group, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = stringResource(Res.string.new_chat_new_group),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = state.query,
                 onValueChange = { onAction(NewChatAction.OnQueryChange(it)) },

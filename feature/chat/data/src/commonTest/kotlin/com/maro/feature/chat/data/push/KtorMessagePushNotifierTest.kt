@@ -24,17 +24,20 @@ class KtorMessagePushNotifierTest {
     private var status = HttpStatusCode.OK
     private var token: String? = "id-token"
 
+    /** Statuses for the requests in order; [status] once these run out. */
+    private val statuses = ArrayDeque<HttpStatusCode>()
+
     private fun notifier(baseUrl: String = "http://push.test/") = KtorMessagePushNotifier(
         client = HttpClientFactory.create(MockEngine { request -> answer(request) }),
         config = PushServerConfig(baseUrl),
         idTokens = object : IdTokenProvider {
-            override suspend fun idToken(): String? = token
+            override suspend fun idToken(forceRefresh: Boolean): String? = if (forceRefresh) "fresh-token" else token
         },
     )
 
     private fun MockRequestHandleScope.answer(request: HttpRequestData): HttpResponseData {
         requests += request
-        return respond("""{"devices":1}""", status)
+        return respond("""{"devices":1}""", statuses.removeFirstOrNull() ?: status)
     }
 
     @Test
@@ -69,5 +72,24 @@ class KtorMessagePushNotifierTest {
 
         assertThat(notifier().messageSent("a_b", "m1")).isEqualTo(Result.Error(DataError.Network.UNAUTHORIZED))
         assertThat(requests).isEmpty()
+    }
+
+    @Test
+    fun `a token the server finds expired is refreshed and the request repeated once`() = runTest {
+        statuses += HttpStatusCode.Unauthorized
+
+        val result = notifier().messageSent("a_b", "m1")
+
+        assertThat(result).isEqualTo(Result.Success(Unit))
+        assertThat(requests.map { it.headers[HttpHeaders.Authorization] })
+            .isEqualTo(listOf("Bearer id-token", "Bearer fresh-token"))
+    }
+
+    @Test
+    fun `a second refusal is reported, not retried forever`() = runTest {
+        status = HttpStatusCode.Unauthorized
+
+        assertThat(notifier().messageSent("a_b", "m1")).isEqualTo(Result.Error(DataError.Network.UNAUTHORIZED))
+        assertThat(requests.size).isEqualTo(2)
     }
 }

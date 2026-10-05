@@ -87,28 +87,39 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
-    // A direct chat between exactly two users. The id is "<uid1>_<uid2>" with the ids in order, so a pair of
-    // people has one chat. Participant names/usernames are copied onto the chat (see /usernames above) so the
-    // list never needs a second read.
+    // A chat: "direct" or "group".
+    // - Direct: exactly two users, the id is "<uid1>_<uid2>" with the ids in order, so a pair of people has one chat.
+    // - Group: a random id (a UUID, never containing "_"), a title, up to 50 participants and a creator (createdBy)
+    //   who may rename it and add people; anyone may leave, and if the creator leaves, the earliest remaining
+    //   participant becomes the creator.
+    // Participant names/usernames are copied onto the chat (participantInfo, see /usernames above) so the list never
+    // needs a second read; people who left a group stay in participantInfo so the history keeps their names.
     match /chats/{chatId} {
-      function isValidChat(chat) {
+      // The shape of both kinds. It does not require the caller to be a participant: leaving a group writes a chat
+      // without them.
+      function hasValidShape(chat) {
         return chat.keys().hasOnly(
             ['type', 'participants', 'participantInfo', 'lastMessageText', 'lastMessageSenderId', 'lastMessageAt',
-             'updatedAt', 'createdAt', 'lastRead', 'lastDelivered']
+             'updatedAt', 'createdAt', 'lastRead', 'lastDelivered', 'title', 'createdBy']
           )
           && chat.keys().hasAll(['type', 'participants', 'participantInfo', 'updatedAt', 'createdAt'])
-          && chat.type == 'direct'
-          && chat.participants is list && chat.participants.size() == 2
-          && chat.participants[0] != chat.participants[1]
-          && request.auth.uid in chat.participants
+          && chat.participants is list
           && chat.participantInfo is map && chat.participantInfo.keys().hasAll(chat.participants)
           && chat.updatedAt is timestamp
           && chat.createdAt is timestamp
           && (!('lastMessageText' in chat) || (chat.lastMessageText is string && chat.lastMessageText.size() <= 4000))
-          && (!('lastMessageSenderId' in chat) || chat.lastMessageSenderId in chat.participants)
+          && (!('lastMessageSenderId' in chat) || chat.lastMessageSenderId is string)
           && (!('lastMessageAt' in chat) || chat.lastMessageAt is timestamp)
           && (!('lastRead' in chat) || chat.lastRead is map)
-          && (!('lastDelivered' in chat) || chat.lastDelivered is map);
+          && (!('lastDelivered' in chat) || chat.lastDelivered is map)
+          && ((chat.type == 'direct'
+                && !('title' in chat) && !('createdBy' in chat)
+                && chat.participants.size() == 2 && chat.participants[0] != chat.participants[1])
+              || (chat.type == 'group'
+                && chat.title is string && chat.title.size() > 0 && chat.title.size() <= 64
+                && chat.participants.size() <= 50
+                && chat.createdBy is string
+                && (chat.participants.size() == 0 || chat.createdBy in chat.participants)));
       }
 
       // One participant's mark: the message it points at and that message's time (never in the future).
@@ -144,34 +155,104 @@ service cloud.firestore {
           && onlyOwnReceiptChanged('lastDelivered');
       }
 
+      // Group, creator only: a new title.
+      function isRename() {
+        return resource.data.type == 'group'
+          && resource.data.createdBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'updatedAt'])
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      // Group, creator only: more people. Nobody is removed, and of participantInfo only the new people's cards
+      // change (someone who comes back gets their card refreshed).
+      function isAddMembers() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let added = after.participants.removeAll(before.participants);
+        return before.type == 'group'
+          && before.createdBy == request.auth.uid
+          && after.diff(before).affectedKeys().hasOnly(['participants', 'participantInfo', 'updatedAt'])
+          && after.participants.hasAll(before.participants)
+          && added.size() > 0
+          && after.participantInfo.diff(before.participantInfo).affectedKeys().hasOnly(added)
+          && after.updatedAt == request.time;
+      }
+
+      // Group, anyone: takes only the caller out. The creator's rights pass to the earliest remaining participant.
+      function isLeave() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let leavesAsCreator = before.createdBy == request.auth.uid;
+        return before.type == 'group'
+          && after.diff(before).affectedKeys().hasOnly(['participants', 'createdBy', 'updatedAt'])
+          && after.participants == before.participants.removeAll([request.auth.uid])
+          && after.updatedAt == request.time
+          && ((!leavesAsCreator && after.createdBy == before.createdBy)
+              || (leavesAsCreator && after.participants.size() == 0 && after.createdBy == before.createdBy)
+              || (leavesAsCreator && after.participants.size() > 0 && after.createdBy == after.participants[0]));
+      }
+
       // `get` also has to work for a chat that does not exist yet: "create it unless it exists" reads it first,
       // and a missing document has no `resource` to look at. That reveals nothing: the id is just two user ids.
       allow get: if request.auth != null
         && (resource == null || request.auth.uid in resource.data.participants);
       allow list: if request.auth != null && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
-        && isValidChat(request.resource.data)
-        && chatId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1]
-        && request.resource.data.createdAt == request.time;
+        && hasValidShape(request.resource.data)
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.type == 'direct'
+              && chatId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1])
+            || (request.resource.data.type == 'group'
+              && request.resource.data.createdBy == request.auth.uid
+              && request.resource.data.participants.size() >= 2
+              && !chatId.matches('.*_.*')));
       allow update: if request.auth != null
         && request.auth.uid in resource.data.participants
-        && isValidChat(request.resource.data)
-        && (isSendUpdate() || isReceiptUpdate());
+        && hasValidShape(request.resource.data)
+        && request.resource.data.type == resource.data.type
+        && (isSendUpdate() || isReceiptUpdate() || isRename() || isAddMembers() || isLeave());
       allow delete: if false;
 
       // The document id is the client_id (UUID) the sender generated, which makes sending idempotent.
       match /messages/{messageId} {
+        // An ordinary message. getAfter: it is written in the same transaction that moves the chat's lastMessage.
+        function isTextMessage() {
+          return request.auth.uid in getAfter(chatPath(chatId)).data.participants
+            && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt', 'clientId'])
+            && request.resource.data.senderId == request.auth.uid
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 4000
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.clientId == messageId;
+        }
+
+        // A group event ("Anna added Peter"), written together with the change it tells about. Only ids and data:
+        // the text is put together on each device. Someone leaving is no longer a participant after the write.
+        function isSystemMessage() {
+          let message = request.resource.data;
+          return message.keys().hasOnly(['senderId', 'type', 'event', 'createdAt', 'clientId'])
+            && message.keys().hasAll(['senderId', 'type', 'event', 'createdAt', 'clientId'])
+            && message.type == 'system'
+            && message.senderId == request.auth.uid
+            && message.createdAt == request.time
+            && message.clientId == messageId
+            && message.event is map
+            && message.event.keys().hasOnly(['kind', 'targets', 'title'])
+            && message.event.kind in ['created', 'added', 'left', 'renamed']
+            && message.event.targets is list && message.event.targets.size() <= 50
+            && (!('title' in message.event) || (message.event.title is string && message.event.title.size() <= 64))
+            && ((message.event.kind == 'left'
+                  && request.auth.uid in get(chatPath(chatId)).data.participants
+                  && !(request.auth.uid in getAfter(chatPath(chatId)).data.participants))
+                || (message.event.kind != 'left'
+                  && request.auth.uid in getAfter(chatPath(chatId)).data.participants));
+        }
+
         allow read: if request.auth != null
           && request.auth.uid in get(chatPath(chatId)).data.participants;
-        // getAfter: the message is written in the same transaction that moves the chat's lastMessage.
-        allow create: if request.auth != null
-          && request.auth.uid in getAfter(chatPath(chatId)).data.participants
-          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt', 'clientId'])
-          && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 4000
-          && request.resource.data.createdAt == request.time
-          && request.resource.data.clientId == messageId;
+        allow create: if request.auth != null && (isTextMessage() || isSystemMessage());
         allow update, delete: if false;
       }
 

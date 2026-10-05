@@ -41,6 +41,8 @@ data class IncomingMessage(
     val messageId: String,
     val senderName: String,
     val text: String,
+    /** Set in a group: the notification is the group's ("Hiking: Anna: …"). */
+    val groupTitle: String? = null,
 )
 
 /** Paging needs a Throwable to report a failed page; this one carries the typed error for the UI. */

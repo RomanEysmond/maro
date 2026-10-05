@@ -23,10 +23,18 @@ data class RemoteMessage(
     val text: String,
     /** Microseconds of the server timestamp (ignored when sending: the server sets it). */
     val createdAtMicros: Long,
+    /** Set for a system message (group events): `kind` is "created" | "added" | "left" | "renamed". */
+    val systemEvent: RemoteSystemEvent? = null,
 ) {
     val cursor: MessageCursor
         get() = MessageCursor(createdAtMicros, id)
 }
+
+data class RemoteSystemEvent(
+    val kind: String,
+    val targets: List<String> = emptyList(),
+    val title: String? = null,
+)
 
 /**
  * Every read goes to the server (never a local cache), so a failure is reported as one instead of looking like

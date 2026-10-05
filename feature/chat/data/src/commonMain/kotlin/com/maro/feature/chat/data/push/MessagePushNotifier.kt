@@ -40,12 +40,14 @@ class KtorMessagePushNotifier(
         if (config.baseUrl.isBlank()) return Result.Success(Unit)
         val token = idTokens.idToken() ?: return Result.Error(DataError.Network.UNAUTHORIZED)
         return try {
-            val response = client.post("${config.baseUrl.trimEnd('/')}/v1/notify") {
-                bearerAuth(token)
-                contentType(ContentType.Application.Json)
-                setBody(NotifyRequestDto(chatId, messageId))
+            var status = post(token, chatId, messageId)
+            // The cached token may have expired by the server's clock while it still looks valid by the device's
+            // (a device whose clock is off): once, with a freshly issued token.
+            if (status == UNAUTHORIZED) {
+                val fresh = idTokens.idToken(forceRefresh = true) ?: return Result.Error(DataError.Network.UNAUTHORIZED)
+                status = post(fresh, chatId, messageId)
             }
-            when (response.status.value) {
+            when (status) {
                 in 200..299 -> Result.Success(Unit)
                 400 -> Result.Error(DataError.Network.BAD_REQUEST)
                 401 -> Result.Error(DataError.Network.UNAUTHORIZED)
@@ -63,5 +65,16 @@ class KtorMessagePushNotifier(
         } catch (e: Exception) {
             Result.Error(DataError.Network.UNKNOWN)
         }
+    }
+
+    private suspend fun post(token: String, chatId: String, messageId: String): Int =
+        client.post("${config.baseUrl.trimEnd('/')}/v1/notify") {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(NotifyRequestDto(chatId, messageId))
+        }.status.value
+
+    private companion object {
+        const val UNAUTHORIZED = 401
     }
 }

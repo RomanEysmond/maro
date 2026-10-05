@@ -10,8 +10,9 @@ import androidx.room3.PrimaryKey
 @Entity(tableName = "chats")
 data class ChatEntity(
     @PrimaryKey val id: String,
-    /** "direct" | "group". Groups arrive in stage 6; only "direct" is written for now. */
+    /** "direct" | "group". */
     val type: String,
+    /** Direct chats only (empty in a group): the other participant. Everyone is in [ChatMemberEntity] too. */
     val otherUserId: String,
     val otherUserFirstName: String,
     val otherUserLastName: String,
@@ -31,4 +32,8 @@ data class ChatEntity(
     val peerReadAt: Long? = null,
     /** Epoch millis up to which the other side's device has received: the user's messages up to here are DELIVERED. */
     val peerDeliveredAt: Long? = null,
+    /** Groups only. */
+    val title: String? = null,
+    /** Groups only: the member who may rename the group and add people. */
+    val createdBy: String? = null,
 )

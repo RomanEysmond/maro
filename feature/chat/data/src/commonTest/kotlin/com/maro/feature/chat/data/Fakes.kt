@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import androidx.paging.testing.asPagingSourceFactory
 import com.maro.core.database.chat.ChatDao
 import com.maro.core.database.chat.ChatEntity
+import com.maro.core.database.chat.ChatMemberEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
@@ -84,6 +85,23 @@ class FakeChatDao : ChatDao {
     val chats = MutableStateFlow<List<ChatEntity>>(emptyList())
     private val CHATS get() = chats
     private val messagesForUnread = MutableStateFlow<List<MessageEntity>>(emptyList())
+
+    val members = MutableStateFlow<List<ChatMemberEntity>>(emptyList())
+
+    override fun observeMembers(chatId: String): Flow<List<ChatMemberEntity>> =
+        members.map { list -> list.filter { it.chatId == chatId } }
+
+    override suspend fun getMembers(chatId: String): List<ChatMemberEntity> = members.value.filter { it.chatId == chatId }
+
+    override suspend fun upsertMembers(members: List<ChatMemberEntity>) {
+        val byKey = this.members.value.associateBy { it.chatId to it.userId }.toMutableMap()
+        members.forEach { byKey[it.chatId to it.userId] = it }
+        this.members.value = byKey.values.toList()
+    }
+
+    override suspend fun deleteMembersExcept(chats: List<String>) {
+        members.value = members.value.filter { it.chatId in chats }
+    }
 
     override fun observeAllWithUnread(userId: String): Flow<List<ChatWithUnread>> =
         combine(CHATS, messagesForUnread) { chats, messages ->

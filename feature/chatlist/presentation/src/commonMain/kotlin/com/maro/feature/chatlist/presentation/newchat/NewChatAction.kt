@@ -5,4 +5,5 @@ sealed interface NewChatAction {
     data object OnSearchClick : NewChatAction
     data object OnUserClick : NewChatAction
     data object OnBackClick : NewChatAction
+    data object OnNewGroupClick : NewChatAction
 }

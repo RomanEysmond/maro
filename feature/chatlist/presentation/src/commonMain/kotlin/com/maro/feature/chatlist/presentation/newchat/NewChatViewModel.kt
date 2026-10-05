@@ -31,6 +31,7 @@ class NewChatViewModel(
             NewChatAction.OnSearchClick -> search()
             NewChatAction.OnUserClick -> startChat()
             NewChatAction.OnBackClick -> viewModelScope.launch { _events.send(NewChatEvent.NavigateBack) }
+            NewChatAction.OnNewGroupClick -> viewModelScope.launch { _events.send(NewChatEvent.NavigateToNewGroup) }
         }
     }
 
