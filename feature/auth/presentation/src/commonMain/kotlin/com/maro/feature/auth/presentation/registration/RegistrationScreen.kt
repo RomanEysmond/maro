@@ -40,6 +40,16 @@ import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.presentation.util.ObserveAsEvents
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
+import com.maro.feature.auth.presentation.generated.resources.Res
+import com.maro.feature.auth.presentation.generated.resources.registration_back
+import com.maro.feature.auth.presentation.generated.resources.registration_continue
+import com.maro.feature.auth.presentation.generated.resources.registration_first_name
+import com.maro.feature.auth.presentation.generated.resources.registration_last_name
+import com.maro.feature.auth.presentation.generated.resources.registration_phone
+import com.maro.feature.auth.presentation.generated.resources.registration_phone_subtitle
+import com.maro.feature.auth.presentation.generated.resources.registration_phone_title
+import com.maro.feature.auth.presentation.generated.resources.registration_title
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun RegistrationRoot(
@@ -73,10 +83,10 @@ fun RegistrationScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Регистрация") },
+                title = { Text(stringResource(Res.string.registration_title)) },
                 navigationIcon = {
                     IconButton(onClick = { onAction(RegistrationAction.OnBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.registration_back))
                     }
                 },
             )
@@ -104,18 +114,18 @@ fun RegistrationScreen(
                 // Иконка приложения
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Регистрация",
+                    contentDescription = null,
                     modifier = Modifier.size(80.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
 
                 Text(
-                    text = "Введите ваш номер телефона",
+                    text = stringResource(Res.string.registration_phone_title),
                     style = MaterialTheme.typography.headlineSmall,
                 )
 
                 Text(
-                    text = "Мы отправим SMS с кодом подтверждения",
+                    text = stringResource(Res.string.registration_phone_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
@@ -126,12 +136,12 @@ fun RegistrationScreen(
                 OutlinedTextField(
                     value = state.firstName,
                     onValueChange = { onAction(RegistrationAction.OnFirstNameChange(it)) },
-                    label = { Text("Имя") },
+                    label = { Text(stringResource(Res.string.registration_first_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Text),
                     leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = "Имя")
+                        Icon(Icons.Default.Person, contentDescription = null)
                     },
                 )
 
@@ -139,12 +149,12 @@ fun RegistrationScreen(
                 OutlinedTextField(
                     value = state.lastName,
                     onValueChange = { onAction(RegistrationAction.OnLastNameChange(it)) },
-                    label = { Text("Фамилия (необязательно)") },
+                    label = { Text(stringResource(Res.string.registration_last_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Text),
                     leadingIcon = {
-                        Icon(Icons.Default.PersonOutline, contentDescription = "Фамилия")
+                        Icon(Icons.Default.PersonOutline, contentDescription = null)
                     },
                 )
 
@@ -152,12 +162,12 @@ fun RegistrationScreen(
                 OutlinedTextField(
                     value = state.phoneNumber,
                     onValueChange = { onAction(RegistrationAction.OnPhoneNumberChange(it)) },
-                    label = { Text("Номер телефона") },
+                    label = { Text(stringResource(Res.string.registration_phone)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Phone),
                     leadingIcon = {
-                        Icon(Icons.Default.Phone, contentDescription = "Телефон")
+                        Icon(Icons.Default.Phone, contentDescription = null)
                     },
                     // The "+7" prefix is always visible; the state keeps only the ten national digits.
                     visualTransformation = PhonePrefixTransformation,
@@ -183,7 +193,7 @@ fun RegistrationScreen(
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Продолжить", modifier = Modifier.padding(vertical = 8.dp))
+                    Text(stringResource(Res.string.registration_continue), modifier = Modifier.padding(vertical = 8.dp))
                 }
             }
         }

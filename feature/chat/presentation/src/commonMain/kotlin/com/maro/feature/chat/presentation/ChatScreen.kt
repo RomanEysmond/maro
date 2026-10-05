@@ -93,6 +93,9 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.clip
+import com.maro.feature.chat.presentation.generated.resources.chat_retry_action
 
 @Composable
 fun ChatRoot(
@@ -371,6 +374,13 @@ private fun MessageBubble(
     onRetryClick: () -> Unit,
 ) {
     val isOutgoing = message.isOutgoing
+    // One node for TalkBack: "Anna, hey, 09:16, Read". A failed message retries on a tap anywhere on the bubble,
+    // not just on its 20 dp icon.
+    val bubbleModifier = if (message.status == MessageStatus.FAILED) {
+        Modifier.clickable(onClickLabel = stringResource(Res.string.chat_retry_action), onClick = onRetryClick)
+    } else {
+        Modifier.semantics(mergeDescendants = true) {}
+    }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
         horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
@@ -378,7 +388,7 @@ private fun MessageBubble(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(16.dp)).then(bubbleModifier),
         ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 senderName?.let { name ->
@@ -399,7 +409,7 @@ private fun MessageBubble(
                     )
                     if (isOutgoing) {
                         Spacer(modifier = Modifier.width(4.dp))
-                        StatusIcon(status = message.status, onRetryClick = onRetryClick)
+                        StatusIcon(status = message.status)
                     }
                 }
             }
@@ -408,10 +418,7 @@ private fun MessageBubble(
 }
 
 @Composable
-private fun StatusIcon(
-    status: MessageStatus,
-    onRetryClick: () -> Unit,
-) {
+private fun StatusIcon(status: MessageStatus) {
     when (status) {
         MessageStatus.SENDING -> Icon(
             imageVector = Icons.Default.Schedule,
@@ -440,7 +447,7 @@ private fun StatusIcon(
         MessageStatus.FAILED -> Icon(
             imageVector = Icons.Default.ErrorOutline,
             contentDescription = stringResource(Res.string.chat_status_failed),
-            modifier = Modifier.size(20.dp).clickable(onClick = onRetryClick),
+            modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.error,
         )
     }
