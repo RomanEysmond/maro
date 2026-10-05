@@ -21,4 +21,12 @@ interface PhoneAuthenticator {
 
     /** Checks the SMS code of the last requested number and signs the user in. */
     suspend fun verifyCode(code: String): EmptyResult<AuthError>
+
+    /**
+     * The verification the last sent code belongs to (opaque), `null` before any code was sent. Lives in memory only:
+     * the screen keeps it across process death and gives it back with [restoreVerification].
+     */
+    val pendingVerificationId: String?
+
+    fun restoreVerification(verificationId: String)
 }

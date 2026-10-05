@@ -2,6 +2,7 @@ package com.maro.feature.chatlist.data
 
 import app.cash.turbine.test
 import assertk.assertThat
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import com.maro.core.database.message.MessageEntity
@@ -16,6 +17,7 @@ import com.maro.feature.chatlist.domain.LastMessageReceipt
 import kotlin.test.Test
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
@@ -31,12 +33,16 @@ class DefaultChatRepositoryTest {
     )
     private val chatB = chatA.copy(id = "chat-b", updatedAt = 2_000L)
 
+    /** Who is signed in; tests switch it to play sign-out and another account in the same process. */
+    private val signedIn = MutableStateFlow<String?>("me")
+
     private fun repository(dao: FakeChatDao, remote: FakeChatRemoteDataSource) =
         DefaultChatRepository(
             chatDao = dao,
             remote = remote,
             currentUser = object : CurrentUserProvider {
-                override val userId: String = "me"
+                override val userIdFlow = signedIn
+                override val userId: String? get() = signedIn.value
             },
             listenerScope = CoroutineScope(UnconfinedTestDispatcher()),
         )
@@ -145,5 +151,42 @@ class DefaultChatRepositoryTest {
         remote.fetchResult = Result.Success(listOf(chatA.copy(lastMessage = LastMessage("Hi", "them", 3_000L))))
         repository.sync()
         assertThat(repository.chats.value.single().lastMessage?.receipt).isEqualTo(null)
+    }
+
+    @Test
+    fun `another account in the same process gets its own unread counts`() = runTest {
+        val dao = FakeChatDao()
+        val repository = repository(dao, FakeChatRemoteDataSource())
+        dao.upsertAll(listOf(chatA.toEntity()))
+        // Written by "me": not unread for me, unread for Anna.
+        dao.messagesForUnread.value = listOf(MessageEntity("m1", "chat-a", "me", "hi", 5_000L, "SENT"))
+        assertThat(repository.chats.value.single().unreadCount).isEqualTo(0)
+
+        signedIn.value = "anna"
+
+        assertThat(repository.chats.value.single().unreadCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `with nobody signed in the list is empty`() = runTest {
+        val dao = FakeChatDao()
+        val repository = repository(dao, FakeChatRemoteDataSource())
+        dao.upsertAll(listOf(chatA.toEntity()))
+
+        signedIn.value = null
+
+        assertThat(repository.chats.value).isEmpty()
+    }
+
+    @Test
+    fun `a chat shows its draft and a blank one counts as none`() = runTest {
+        val dao = FakeChatDao()
+        val repository = repository(dao, FakeChatRemoteDataSource())
+        dao.upsertAll(listOf(chatA.toEntity(), chatB.toEntity()))
+
+        dao.drafts.value = mapOf("chat-a" to "half a thought", "chat-b" to "  ")
+
+        val drafts = repository.chats.value.associate { it.id to it.draft }
+        assertThat(drafts).isEqualTo(mapOf("chat-a" to "half a thought", "chat-b" to null))
     }
 }

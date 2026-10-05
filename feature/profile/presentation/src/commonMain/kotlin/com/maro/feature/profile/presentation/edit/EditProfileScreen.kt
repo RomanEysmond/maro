@@ -49,6 +49,7 @@ import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.domain.profile.BirthDate
 import com.maro.core.domain.profile.ProfileRules
 import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.core.presentation.util.rememberTextFieldValue
 import com.maro.feature.profile.presentation.generated.resources.Res
 import com.maro.feature.profile.presentation.generated.resources.edit_back
 import com.maro.feature.profile.presentation.generated.resources.edit_bio
@@ -156,25 +157,28 @@ fun EditProfileScreen(
                         textAlign = TextAlign.Center,
                     )
                 } else {
+                    val firstName = rememberTextFieldValue(state.firstName)
                     OutlinedTextField(
-                        value = state.firstName,
-                        onValueChange = { onAction(EditProfileAction.OnFirstNameChange(it)) },
+                        value = firstName.value,
+                        onValueChange = { firstName.value = it; onAction(EditProfileAction.OnFirstNameChange(it.text)) },
                         label = { Text(stringResource(Res.string.edit_first_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
+                    val lastName = rememberTextFieldValue(state.lastName)
                     OutlinedTextField(
-                        value = state.lastName,
-                        onValueChange = { onAction(EditProfileAction.OnLastNameChange(it)) },
+                        value = lastName.value,
+                        onValueChange = { lastName.value = it; onAction(EditProfileAction.OnLastNameChange(it.text)) },
                         label = { Text(stringResource(Res.string.edit_last_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
                 }
 
+                val username = rememberTextFieldValue(state.username)
                 OutlinedTextField(
-                    value = state.username,
-                    onValueChange = { onAction(EditProfileAction.OnUsernameChange(it)) },
+                    value = username.value,
+                    onValueChange = { username.value = it; onAction(EditProfileAction.OnUsernameChange(it.text)) },
                     label = { Text(stringResource(Res.string.edit_username)) },
                     prefix = { Text("@") },
                     modifier = Modifier.fillMaxWidth(),
@@ -191,9 +195,10 @@ fun EditProfileScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
                 )
 
+                val bio = rememberTextFieldValue(state.bio)
                 OutlinedTextField(
-                    value = state.bio,
-                    onValueChange = { onAction(EditProfileAction.OnBioChange(it)) },
+                    value = bio.value,
+                    onValueChange = { bio.value = it; onAction(EditProfileAction.OnBioChange(it.text)) },
                     label = { Text(stringResource(Res.string.edit_bio)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,

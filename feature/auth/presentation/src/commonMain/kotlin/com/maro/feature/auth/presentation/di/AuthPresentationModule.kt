@@ -9,5 +9,5 @@ import org.koin.dsl.module
 val authPresentationModule = module {
     viewModelOf(::RegistrationViewModel)
     // Takes the route (name and phone typed on the previous screen) as a parameter.
-    viewModel { params -> VerifyCodeViewModel(params.get(), get(), get()) }
+    viewModel { params -> VerifyCodeViewModel(params.get(), get(), get(), get()) }
 }

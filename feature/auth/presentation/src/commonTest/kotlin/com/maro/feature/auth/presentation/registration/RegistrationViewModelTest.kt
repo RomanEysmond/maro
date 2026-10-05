@@ -1,5 +1,6 @@
 package com.maro.feature.auth.presentation.registration
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
@@ -33,7 +34,7 @@ class RegistrationViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         authenticator = FakePhoneAuthenticator()
         profiles = FakeUserProfileRepository()
-        viewModel = RegistrationViewModel(authenticator, profiles)
+        viewModel = RegistrationViewModel(authenticator, profiles, SavedStateHandle())
     }
 
     @AfterTest
@@ -149,5 +150,19 @@ class RegistrationViewModelTest {
 
             assertThat(awaitItem()).isEqualTo(RegistrationEvent.NavigateBack)
         }
+    }
+
+    @Test
+    fun `the form comes back as it was after the process was killed`() {
+        val savedState = SavedStateHandle()
+        RegistrationViewModel(authenticator, profiles, savedState).apply {
+            onAction(RegistrationAction.OnFirstNameChange("Иван"))
+            onAction(RegistrationAction.OnPhoneNumberChange("9001234567"))
+        }
+
+        val restored = RegistrationViewModel(authenticator, profiles, savedState)
+
+        assertThat(restored.state.value.firstName).isEqualTo("Иван")
+        assertThat(restored.state.value.phoneNumber).isEqualTo("9001234567")
     }
 }

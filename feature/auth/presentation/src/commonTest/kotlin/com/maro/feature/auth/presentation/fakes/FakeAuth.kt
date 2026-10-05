@@ -23,6 +23,12 @@ class FakePhoneAuthenticator : PhoneAuthenticator {
     val resentTo = mutableListOf<String>()
     val verifiedCodes = mutableListOf<String>()
 
+    override var pendingVerificationId: String? = null
+
+    override fun restoreVerification(verificationId: String) {
+        pendingVerificationId = verificationId
+    }
+
     override suspend fun sendCode(phone: String): Result<SendCodeOutcome, AuthError> {
         sentTo += phone
         return sendResult

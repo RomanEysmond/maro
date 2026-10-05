@@ -6,6 +6,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import com.maro.core.database.chat.ChatDao
+import com.maro.core.database.chat.ChatDraftEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.domain.auth.CurrentUserProvider
@@ -61,6 +62,7 @@ class DefaultMessageRepository(
     // One flush at a time: the immediate send and the WorkManager run must not race over the same rows
     // (a double send would be harmless anyway — the server write is idempotent — but it is wasted work).
     private val outboxMutex = Mutex()
+    private val draftMutex = Mutex()
 
     private val receipts = ReceiptReporter(messageDao, chatDao, remote, currentUser, scope)
 
@@ -145,6 +147,23 @@ class DefaultMessageRepository(
 
     override fun newestIncomingMessageId(chatId: String): Flow<String?> =
         messageDao.observeNewestIncoming(chatId, currentUser.userId.orEmpty()).map { it?.id }
+
+    override suspend fun draft(chatId: String): String = chatDao.getDraft(chatId).orEmpty()
+
+    override fun saveDraft(chatId: String, text: String) {
+        scope.launch {
+            // One write at a time and in order: fast typing must not let an older text land after a newer one.
+            draftMutex.withLock {
+                if (text.isBlank()) {
+                    chatDao.deleteDraft(chatId)
+                } else {
+                    chatDao.upsertDraft(ChatDraftEntity(chatId = chatId, text = text, updatedAt = now()))
+                }
+            }
+        }
+    }
+
+    override suspend fun unsentCount(): Int = messageDao.countUnsent()
 
     override suspend fun markRead(chatId: String) = receipts.markRead(chatId)
 

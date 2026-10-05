@@ -1,5 +1,6 @@
 package com.maro.feature.chatlist.presentation.newgroup
 
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
@@ -39,7 +40,7 @@ class NewGroupViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = NewGroupViewModel(repository)
+    private fun viewModel(savedState: SavedStateHandle = SavedStateHandle()) = NewGroupViewModel(repository, savedState)
 
     private fun NewGroupViewModel.add(username: String) {
         onAction(NewGroupAction.OnQueryChange(username))
@@ -122,5 +123,20 @@ class NewGroupViewModelTest {
 
         assertThat(viewModel.state.value.title.length).isEqualTo(64)
         assertThat(viewModel.state.value.error).isNull()
+    }
+
+    @Test
+    fun `the group being put together comes back after the process was killed`() {
+        val savedState = SavedStateHandle()
+        viewModel(savedState).apply {
+            onAction(NewGroupAction.OnTitleChange("Поход"))
+            onAction(NewGroupAction.OnQueryChange("anna_p"))
+            onAction(NewGroupAction.OnAddClick)
+        }
+
+        val restored = viewModel(savedState)
+
+        assertThat(restored.state.value.title).isEqualTo("Поход")
+        assertThat(restored.state.value.members).isEqualTo(listOf(anna))
     }
 }

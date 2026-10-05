@@ -1,6 +1,7 @@
 package com.maro.feature.chatlist.data
 
 import com.maro.core.database.chat.ChatDao
+import com.maro.core.database.chat.ChatDraftEntity
 import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.chat.ChatMemberEntity
 import com.maro.core.database.chat.ChatWithUnread
@@ -11,6 +12,22 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class FakeChatDao : ChatDao {
+    /** chatId -> draft text. */
+    val drafts = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    override suspend fun getDraft(chatId: String): String? = drafts.value[chatId]
+
+    override suspend fun upsertDraft(draft: ChatDraftEntity) {
+        drafts.value = drafts.value + (draft.chatId to draft.text)
+    }
+
+    override suspend fun deleteDraft(chatId: String) {
+        drafts.value = drafts.value - chatId
+    }
+
+    override suspend fun deleteDraftsExcept(chats: List<String>) {
+        drafts.value = drafts.value.filterKeys { it in chats }
+    }
     private val _chats = MutableStateFlow<List<ChatEntity>>(emptyList())
     private val CHATS get() = _chats
 
@@ -35,13 +52,14 @@ class FakeChatDao : ChatDao {
     }
 
     override fun observeAllWithUnread(userId: String): Flow<List<ChatWithUnread>> =
-        combine(CHATS, messagesForUnread) { chats, messages ->
+        combine(CHATS, messagesForUnread, drafts) { chats, messages, drafts ->
             chats.map { chat ->
                 ChatWithUnread(
                     chat = chat,
                     unreadCount = messages.count {
                         it.chatId == chat.id && it.senderId != userId && it.createdAt > (chat.myReadAt ?: 0L)
                     },
+                    draft = drafts[chat.id],
                 )
             }
         }

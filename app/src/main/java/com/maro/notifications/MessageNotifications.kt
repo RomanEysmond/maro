@@ -52,6 +52,11 @@ class MessageNotifications(private val context: Context) {
     private fun IncomingMessage.body(): String =
         if (groupTitle != null && senderName.isNotBlank()) "$senderName: $text" else text
 
+    /** Sign-out: nothing of the previous user's chats stays in the shade. */
+    fun cancelAll() {
+        NotificationManagerCompat.from(context).cancelAll()
+    }
+
     fun cancel(chatId: String) {
         NotificationManagerCompat.from(context).cancel(chatId, NOTIFICATION_ID)
     }

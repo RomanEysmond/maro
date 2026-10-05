@@ -63,4 +63,17 @@ class FakeMessageRepository : MessageRepository {
     }
 
     override suspend fun flushOutbox(attempt: Int): OutboxResult = OutboxResult.DONE
+
+    /** chatId -> draft, as the repository would keep it. */
+    val drafts = mutableMapOf<String, String>()
+
+    override suspend fun draft(chatId: String): String = drafts[chatId].orEmpty()
+
+    override fun saveDraft(chatId: String, text: String) {
+        if (text.isBlank()) drafts.remove(chatId) else drafts[chatId] = text
+    }
+
+    var unsent = 0
+
+    override suspend fun unsentCount(): Int = unsent
 }

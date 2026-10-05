@@ -1,27 +1,51 @@
 package com.maro.feature.auth.presentation.registration
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.maro.core.domain.profile.UserProfileRepository
 import com.maro.core.domain.util.Result
+import com.maro.core.presentation.util.SavedDraft
 import com.maro.core.presentation.util.toUiText
 import com.maro.feature.auth.domain.PhoneAuthenticator
 import com.maro.feature.auth.domain.SendCodeOutcome
-import com.maro.core.domain.profile.UserProfileRepository
 import com.maro.feature.auth.presentation.util.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+
+/** The fields of the form, kept across process death. */
+@Serializable
+private data class RegistrationDraft(val firstName: String, val lastName: String, val phoneNumber: String)
 
 class RegistrationViewModel(
     private val phoneAuthenticator: PhoneAuthenticator,
     private val userProfileRepository: UserProfileRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RegistrationState())
     val state = _state.asStateFlow()
+
+    private val draft = SavedDraft(savedStateHandle, RegistrationDraft.serializer())
+
+    init {
+        draft.restore()?.let { saved ->
+            _state.update { it.copy(firstName = saved.firstName, lastName = saved.lastName, phoneNumber = saved.phoneNumber) }
+        }
+        _state.map { RegistrationDraft(it.firstName, it.lastName, it.phoneNumber) }
+            .distinctUntilChanged()
+            .onEach(draft::save)
+            .launchIn(viewModelScope)
+    }
 
     private val _events = Channel<RegistrationEvent>()
     val events = _events.receiveAsFlow()

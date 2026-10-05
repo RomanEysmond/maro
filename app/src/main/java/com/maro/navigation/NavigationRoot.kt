@@ -5,19 +5,27 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
+import com.maro.LogoutConfirmation
 import com.maro.MainViewModel
+import com.maro.R
 import com.maro.feature.auth.presentation.AuthGraphRoute
 import com.maro.feature.auth.presentation.authGraph
 import com.maro.feature.chat.presentation.ChatRoute
@@ -46,8 +54,17 @@ fun NavigationRoot(
     notifications: MessageNotifications = koinInject(),
 ) {
     val isLoggedIn by mainViewModel.isLoggedIn.collectAsState()
+    val logoutConfirmation by mainViewModel.logoutConfirmation.collectAsState()
 
     NotificationPermissionRequest(isLoggedIn = isLoggedIn)
+
+    logoutConfirmation?.let { confirmation ->
+        LogoutDialog(
+            confirmation = confirmation,
+            onConfirm = mainViewModel::onLogoutConfirm,
+            onDismiss = mainViewModel::onLogoutDismiss,
+        )
+    }
 
     val openChat: (String) -> Unit = { chatId ->
         // Opening the chat makes its notification obsolete, however the chat was opened.
@@ -110,6 +127,40 @@ fun NavigationRoot(
             },
         )
     }
+}
+
+/** "Log out?", plus how many messages would be lost when some have not reached the server. */
+@Composable
+private fun LogoutDialog(
+    confirmation: LogoutConfirmation,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.logout_title)) },
+        text = if (confirmation.unsentMessages > 0) {
+            {
+                Text(
+                    pluralStringResource(
+                        R.plurals.logout_unsent_messages,
+                        confirmation.unsentMessages,
+                        confirmation.unsentMessages,
+                    ),
+                )
+            }
+        } else {
+            null
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.logout_confirm), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.logout_cancel)) }
+        },
+    )
 }
 
 /** Android 13+: message notifications need a runtime permission; asked once the user is signed in. */

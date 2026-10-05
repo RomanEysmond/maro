@@ -26,8 +26,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,8 +46,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.component.InitialsAvatar
@@ -60,6 +63,7 @@ import com.maro.feature.chatlist.domain.ChatType
 import com.maro.feature.chatlist.domain.LastMessage
 import com.maro.feature.chatlist.domain.LastMessageReceipt
 import com.maro.feature.chatlist.presentation.generated.resources.Res
+import com.maro.feature.chatlist.presentation.generated.resources.chat_list_draft
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empty_subtitle
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empty_title
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_menu
@@ -230,7 +234,23 @@ private fun ChatListItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(text = chat.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            val draft = chat.draft
+            if (draft != null) {
+                // Like the messengers people know: an unsent draft outranks the last message.
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) {
+                            append(stringResource(Res.string.chat_list_draft))
+                        }
+                        append(" ")
+                        append(draft)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else Row(verticalAlignment = Alignment.CenterVertically) {
                 chat.lastMessage?.receipt?.let { receipt ->
                     ReceiptIcon(receipt)
                     Spacer(modifier = Modifier.width(4.dp))

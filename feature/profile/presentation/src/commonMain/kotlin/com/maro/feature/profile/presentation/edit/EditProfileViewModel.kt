@@ -1,36 +1,69 @@
 package com.maro.feature.profile.presentation.edit
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.maro.core.domain.profile.BirthDate
 import com.maro.core.domain.profile.ProfileError
 import com.maro.core.domain.profile.ProfileRules
 import com.maro.core.domain.profile.ProfileUpdate
 import com.maro.core.domain.profile.UserProfile
 import com.maro.core.domain.profile.UserProfileRepository
 import com.maro.core.domain.util.Result
+import com.maro.core.presentation.util.SavedDraft
 import com.maro.core.presentation.util.toUiText
 import com.maro.feature.profile.presentation.util.toUiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+
+/** The fields of the form as edited, kept across process death. [birthDate] is "yyyy-MM-dd". */
+@Serializable
+private data class EditProfileDraft(
+    val firstName: String,
+    val lastName: String,
+    val username: String,
+    val bio: String,
+    val birthDate: String?,
+)
 
 class EditProfileViewModel(
     private val mode: EditProfileMode,
     private val repository: UserProfileRepository,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditProfileState(mode = mode))
     val state = _state.asStateFlow()
 
+    private val draft = SavedDraft(savedStateHandle, EditProfileDraft.serializer())
+
     private val _events = Channel<EditProfileEvent>()
     val events = _events.receiveAsFlow()
 
     init {
+        val restored = draft.restore()
         val known = repository.profile.value
-        if (known != null) {
+        if (restored != null) {
+            // Back after process death: the user's unsaved edits win over the stored profile.
+            _state.update {
+                it.copy(
+                    firstName = restored.firstName,
+                    lastName = restored.lastName,
+                    username = restored.username,
+                    bio = restored.bio,
+                    birthDate = restored.birthDate?.let(BirthDate::parse),
+                )
+            }
+        } else if (known != null) {
             fill(known)
         } else {
             _state.update { it.copy(isLoading = true) }
@@ -44,6 +77,18 @@ class EditProfileViewModel(
                 }
             }
         }
+    }
+
+    init {
+        // Only once the form shows the profile: an empty form still loading is not a draft.
+        _state.map { state ->
+            state.takeUnless { it.isLoading }?.let {
+                EditProfileDraft(it.firstName, it.lastName, it.username, it.bio, it.birthDate?.toIsoString())
+            }
+        }
+            .distinctUntilChanged()
+            .onEach { it?.let(draft::save) }
+            .launchIn(viewModelScope)
     }
 
     fun onAction(action: EditProfileAction) {

@@ -1,15 +1,5 @@
 package com.maro.feature.chat.presentation
 
-import org.jetbrains.compose.resources.pluralStringResource
-import com.maro.feature.chat.presentation.generated.resources.chat_typing_several
-import com.maro.feature.chat.presentation.generated.resources.chat_typing_named
-import com.maro.feature.chat.presentation.generated.resources.chat_members
-import com.maro.feature.chat.presentation.generated.resources.chat_event_renamed
-import com.maro.feature.chat.presentation.generated.resources.chat_event_left
-import com.maro.feature.chat.presentation.generated.resources.chat_event_created
-import com.maro.feature.chat.presentation.generated.resources.chat_event_added
-import com.maro.feature.chat.domain.SystemEventKind
-import com.maro.feature.chat.domain.ChatMember
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,11 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -53,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -63,23 +55,32 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
-import com.maro.core.presentation.time.dayHeaderText
-import com.maro.core.presentation.time.messageTimeText
-import com.maro.core.presentation.util.UiText
-import com.maro.core.presentation.util.toUiText
 import com.maro.core.designsystem.component.InitialsAvatar
 import com.maro.core.designsystem.theme.MaroTheme
+import com.maro.core.presentation.time.dayHeaderText
+import com.maro.core.presentation.time.messageTimeText
 import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.core.presentation.util.UiText
+import com.maro.core.presentation.util.rememberTextFieldValue
+import com.maro.core.presentation.util.toUiText
 import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatMember
 import com.maro.feature.chat.domain.LoadMessagesException
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageStatus
+import com.maro.feature.chat.domain.SystemEventKind
 import com.maro.feature.chat.presentation.generated.resources.Res
 import com.maro.feature.chat.presentation.generated.resources.chat_back
 import com.maro.feature.chat.presentation.generated.resources.chat_empty
+import com.maro.feature.chat.presentation.generated.resources.chat_event_added
+import com.maro.feature.chat.presentation.generated.resources.chat_event_created
+import com.maro.feature.chat.presentation.generated.resources.chat_event_left
+import com.maro.feature.chat.presentation.generated.resources.chat_event_renamed
 import com.maro.feature.chat.presentation.generated.resources.chat_history_error
 import com.maro.feature.chat.presentation.generated.resources.chat_history_retry
 import com.maro.feature.chat.presentation.generated.resources.chat_input_hint
+import com.maro.feature.chat.presentation.generated.resources.chat_members
+import com.maro.feature.chat.presentation.generated.resources.chat_retry_action
 import com.maro.feature.chat.presentation.generated.resources.chat_send
 import com.maro.feature.chat.presentation.generated.resources.chat_status_delivered
 import com.maro.feature.chat.presentation.generated.resources.chat_status_failed
@@ -87,15 +88,15 @@ import com.maro.feature.chat.presentation.generated.resources.chat_status_read
 import com.maro.feature.chat.presentation.generated.resources.chat_status_sending
 import com.maro.feature.chat.presentation.generated.resources.chat_status_sent
 import com.maro.feature.chat.presentation.generated.resources.chat_typing
+import com.maro.feature.chat.presentation.generated.resources.chat_typing_named
+import com.maro.feature.chat.presentation.generated.resources.chat_typing_several
 import com.maro.feature.chat.presentation.generated.resources.chat_updating
 import com.maro.feature.chat.presentation.generated.resources.chat_waiting_for_network
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.datetime.LocalDate
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.draw.clip
-import com.maro.feature.chat.presentation.generated.resources.chat_retry_action
 
 @Composable
 fun ChatRoot(
@@ -464,9 +465,10 @@ private fun MessageInput(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val input = rememberTextFieldValue(value)
         OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = input.value,
+            onValueChange = { input.value = it; onValueChange(it.text) },
             modifier = Modifier.weight(1f),
             placeholder = { Text(stringResource(Res.string.chat_input_hint)) },
             maxLines = 5,

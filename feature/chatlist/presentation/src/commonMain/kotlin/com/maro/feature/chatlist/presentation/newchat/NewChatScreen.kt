@@ -1,14 +1,12 @@
 package com.maro.feature.chatlist.presentation.newchat
 
-import com.maro.feature.chatlist.presentation.generated.resources.new_chat_new_group
-import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,10 +41,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.component.InitialsAvatar
 import com.maro.core.designsystem.theme.MaroTheme
 import com.maro.core.presentation.util.ObserveAsEvents
+import com.maro.core.presentation.util.rememberTextFieldValue
 import com.maro.feature.chatlist.domain.FoundUser
 import com.maro.feature.chatlist.presentation.generated.resources.Res
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_back
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_hint
+import com.maro.feature.chatlist.presentation.generated.resources.new_chat_new_group
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_search
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_title
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_username
@@ -115,9 +116,10 @@ fun NewChatScreen(
             }
             HorizontalDivider()
             Spacer(modifier = Modifier.height(12.dp))
+            val query = rememberTextFieldValue(state.query)
             OutlinedTextField(
-                value = state.query,
-                onValueChange = { onAction(NewChatAction.OnQueryChange(it)) },
+                value = query.value,
+                onValueChange = { query.value = it; onAction(NewChatAction.OnQueryChange(it.text)) },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 label = { Text(stringResource(Res.string.new_chat_username)) },
                 prefix = { Text("@") },

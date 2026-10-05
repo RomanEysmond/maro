@@ -35,6 +35,7 @@ class DefaultTypingRepositoryTest {
     private val remote = FakeTypingRemote()
     private val me = object : CurrentUserProvider {
         override val userId: String = "me"
+        override val userIdFlow = MutableStateFlow<String?>("me")
     }
 
     private fun TestScope.repository() = DefaultTypingRepository(

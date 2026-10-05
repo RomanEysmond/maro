@@ -36,6 +36,13 @@ internal class FirebasePhoneAuthenticator(
     override suspend fun resendCode(phone: String): Result<SendCodeOutcome, AuthError> =
         requestCode(phone, forceResendingToken = resendToken.takeIf { tokenPhone == phone })
 
+    override val pendingVerificationId: String? get() = verificationId
+
+    override fun restoreVerification(verificationId: String) {
+        // The resend token is not restored: "Resend" then simply sends a new code.
+        this.verificationId = verificationId
+    }
+
     override suspend fun verifyCode(code: String): EmptyResult<AuthError> {
         val id = verificationId ?: return Result.Error(AuthError.CODE_EXPIRED)
         return try {
