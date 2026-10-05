@@ -210,4 +210,19 @@ class ChatViewModelTest {
         repository.newestIncoming.value = "m3"
         assertThat(repository.markReadCalls).isEqualTo(2)
     }
+
+    @Test
+    fun `the top bar opens the group screen, but only in a group`() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            repository.headerFlow.value = ChatHeader("Иван Иванов", "ИИ")
+            viewModel.onAction(ChatAction.OnHeaderClick)
+            expectNoEvents()
+
+            repository.headerFlow.value = ChatHeader("Поход", "П", isGroup = true)
+            viewModel.onAction(ChatAction.OnHeaderClick)
+            assertThat(awaitItem()).isEqualTo(ChatEvent.NavigateToGroupInfo("chat"))
+        }
+    }
 }

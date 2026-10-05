@@ -8,16 +8,22 @@ import androidx.room3.RoomDatabaseConstructor
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.maro.core.database.chat.ChatDao
 import com.maro.core.database.chat.ChatEntity
+import com.maro.core.database.chat.ChatMemberEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
 import kotlinx.coroutines.Dispatchers
 
 @Database(
-    entities = [ChatEntity::class, MessageEntity::class, MessageSyncEntity::class],
-    version = 4,
+    entities = [ChatEntity::class, MessageEntity::class, MessageSyncEntity::class, ChatMemberEntity::class],
+    version = 5,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2),
+        AutoMigration(from = 2, to = 3),
+        AutoMigration(from = 3, to = 4),
+        AutoMigration(from = 4, to = 5),
+    ],
 )
 @ConstructedBy(MaroDatabaseConstructor::class)
 abstract class MaroDatabase : RoomDatabase() {

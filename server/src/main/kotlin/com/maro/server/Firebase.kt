@@ -50,8 +50,10 @@ private class FirebaseTokenVerifier(private val auth: FirebaseAuth) : TokenVerif
     override suspend fun verify(idToken: String): String? = try {
         withContext(Dispatchers.IO) { auth.verifyIdToken(idToken).uid }
     } catch (e: FirebaseAuthException) {
+        log.warn("ID token rejected: {} {}", e.authErrorCode, e.message)
         null
     } catch (e: IllegalArgumentException) {
+        log.warn("ID token malformed")
         null
     }
 }

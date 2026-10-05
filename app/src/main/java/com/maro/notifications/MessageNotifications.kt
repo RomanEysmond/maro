@@ -31,9 +31,9 @@ class MessageNotifications(private val context: Context) {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_message)
-            .setContentTitle(message?.senderName?.takeIf { it.isNotBlank() } ?: context.getString(R.string.app_name))
-            .setContentText(message?.text ?: context.getString(R.string.notification_new_message))
-            .setStyle(message?.let { NotificationCompat.BigTextStyle().bigText(it.text) })
+            .setContentTitle(message?.title() ?: context.getString(R.string.app_name))
+            .setContentText(message?.body() ?: context.getString(R.string.notification_new_message))
+            .setStyle(message?.let { NotificationCompat.BigTextStyle().bigText(it.body()) })
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -45,6 +45,12 @@ class MessageNotifications(private val context: Context) {
             // The permission was revoked between the check and the call.
         }
     }
+
+    // A group's notification is the group's: its title, and the sender in front of the text.
+    private fun IncomingMessage.title(): String? = (groupTitle ?: senderName).takeIf { it.isNotBlank() }
+
+    private fun IncomingMessage.body(): String =
+        if (groupTitle != null && senderName.isNotBlank()) "$senderName: $text" else text
 
     fun cancel(chatId: String) {
         NotificationManagerCompat.from(context).cancel(chatId, NOTIFICATION_ID)

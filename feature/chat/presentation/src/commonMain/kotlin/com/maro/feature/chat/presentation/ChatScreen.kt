@@ -1,5 +1,15 @@
 package com.maro.feature.chat.presentation
 
+import org.jetbrains.compose.resources.pluralStringResource
+import com.maro.feature.chat.presentation.generated.resources.chat_typing_several
+import com.maro.feature.chat.presentation.generated.resources.chat_typing_named
+import com.maro.feature.chat.presentation.generated.resources.chat_members
+import com.maro.feature.chat.presentation.generated.resources.chat_event_renamed
+import com.maro.feature.chat.presentation.generated.resources.chat_event_left
+import com.maro.feature.chat.presentation.generated.resources.chat_event_created
+import com.maro.feature.chat.presentation.generated.resources.chat_event_added
+import com.maro.feature.chat.domain.SystemEventKind
+import com.maro.feature.chat.domain.ChatMember
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +98,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 fun ChatRoot(
     viewModel: ChatViewModel,
     onNavigateBack: () -> Unit,
+    onOpenGroupInfo: (chatId: String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items = viewModel.items.collectAsLazyPagingItems()
@@ -101,6 +112,7 @@ fun ChatRoot(
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
             ChatEvent.NavigateBack -> onNavigateBack()
+            is ChatEvent.NavigateToGroupInfo -> onOpenGroupInfo(event.chatId)
         }
     }
 
@@ -125,12 +137,17 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.clickable(enabled = state.header?.isGroup == true) {
+                            onAction(ChatAction.OnHeaderClick)
+                        },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         state.header?.let { header ->
                             InitialsAvatar(initials = header.initials, size = 36.dp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(text = header.participantName, maxLines = 1)
+                                Text(text = header.title, maxLines = 1)
                                 state.subtitle()?.let { subtitle ->
                                     Text(
                                         text = subtitle,
@@ -179,10 +196,17 @@ fun ChatScreen(
                             contentType = items.itemContentType { it::class.simpleName },
                         ) { index ->
                             when (val item = items[index]) {
-                                is ChatItem.MessageItem -> MessageBubble(
-                                    message = item.message,
-                                    onRetryClick = { onAction(ChatAction.OnRetryClick(item.message.id)) },
-                                )
+                                is ChatItem.MessageItem -> if (item.message.systemEvent != null) {
+                                    SystemMessage(message = item.message, members = state.header?.members.orEmpty())
+                                } else {
+                                    MessageBubble(
+                                        message = item.message,
+                                        // In a group, the name goes above the first of someone's consecutive
+                                        // messages (the list is newest first: the older neighbour is index + 1).
+                                        senderName = senderNameFor(state, item.message, items.olderMessage(index)),
+                                        onRetryClick = { onAction(ChatAction.OnRetryClick(item.message.id)) },
+                                    )
+                                }
                                 is ChatItem.DaySeparator -> DayHeader(date = item.date)
                                 null -> Unit
                             }
@@ -235,9 +259,46 @@ private fun FollowNewestMessage(
 private fun ChatState.subtitle(): String? = when {
     error != null -> error.asString()
     connection == ChatConnection.WAITING_FOR_NETWORK -> stringResource(Res.string.chat_waiting_for_network)
+    isPeerTyping && header?.isGroup == true -> when (typingNames.size) {
+        1 -> stringResource(Res.string.chat_typing_named, typingNames.single())
+        else -> stringResource(Res.string.chat_typing_several)
+    }
     isPeerTyping -> stringResource(Res.string.chat_typing)
     connection == ChatConnection.UPDATING -> stringResource(Res.string.chat_updating)
+    header?.isGroup == true -> pluralStringResource(Res.plurals.chat_members, header.memberCount, header.memberCount)
     else -> null
+}
+
+private fun LazyPagingItems<ChatItem>.olderMessage(index: Int): Message? =
+    if (index + 1 < itemCount) (peek(index + 1) as? ChatItem.MessageItem)?.message else null
+
+private fun senderNameFor(state: ChatState, message: Message, older: Message?): String? {
+    val header = state.header ?: return null
+    if (!header.isGroup || message.isOutgoing) return null
+    if (older != null && older.systemEvent == null && older.senderId == message.senderId) return null
+    return header.members.firstOrNull { it.id == message.senderId }?.fullName
+}
+
+@Composable
+private fun SystemMessage(message: Message, members: List<ChatMember>) {
+    val event = message.systemEvent ?: return
+    fun nameOf(id: String): String = members.firstOrNull { it.id == id }?.firstName ?: "?"
+    val actor = nameOf(message.senderId)
+    val text = when (event.kind) {
+        SystemEventKind.CREATED -> stringResource(Res.string.chat_event_created, actor, event.title.orEmpty())
+        SystemEventKind.ADDED ->
+            stringResource(Res.string.chat_event_added, actor, event.targetIds.joinToString(", ") { nameOf(it) })
+        SystemEventKind.LEFT -> stringResource(Res.string.chat_event_left, actor)
+        SystemEventKind.RENAMED -> stringResource(Res.string.chat_event_renamed, actor, event.title.orEmpty())
+    }
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @Composable
@@ -306,6 +367,7 @@ private fun HistoryLoadState(
 @Composable
 private fun MessageBubble(
     message: Message,
+    senderName: String?,
     onRetryClick: () -> Unit,
 ) {
     val isOutgoing = message.isOutgoing
@@ -318,20 +380,27 @@ private fun MessageBubble(
             color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.widthIn(max = 300.dp),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Text(text = message.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f, fill = false))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = messageTimeText(message.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-                if (isOutgoing) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    StatusIcon(status = message.status, onRetryClick = onRetryClick)
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                senderName?.let { name ->
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(text = message.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f, fill = false))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = messageTimeText(message.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                    if (isOutgoing) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        StatusIcon(status = message.status, onRetryClick = onRetryClick)
+                    }
                 }
             }
         }
@@ -416,7 +485,7 @@ private fun ChatScreenPreview() {
     ).map<Message, ChatItem> { ChatItem.MessageItem(it) } + ChatItem.DaySeparator(LocalDate(2026, 9, 30))
     MaroTheme {
         ChatScreen(
-            state = ChatState(header = ChatHeader("Иван Иванов", "ИИ"), connection = null, isCaughtUp = true, isPeerTyping = true),
+            state = ChatState(header = ChatHeader("Иван Иванов", "ИИ"), connection = null, isCaughtUp = true, typingUserIds = setOf("them")),
             items = flowOf(PagingData.from(items)).collectAsLazyPagingItems(),
             onAction = {},
         )

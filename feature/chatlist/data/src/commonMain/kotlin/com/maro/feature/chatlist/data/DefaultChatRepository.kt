@@ -40,13 +40,13 @@ class DefaultChatRepository(
     init {
         // Accelerator only: keeps Room fresh in the background. `sync()` is what the UI awaits and can retry.
         remote.observeChats()
-            .onEach { result -> result.onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }) } }
+            .onEach { result -> result.onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() }) } }
             .launchIn(listenerScope)
     }
 
     override suspend fun sync(): EmptyResult<DataError.Network> {
         return remote.fetchChats()
-            .onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }) }
+            .onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() }) }
             .asEmptyResult()
     }
 }

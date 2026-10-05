@@ -17,5 +17,5 @@ val chatListDataModule = module {
     single<ChatRepository> { DefaultChatRepository(get(), get(), get()) }
 
     single<NewChatRemoteDataSource> { FirestoreNewChatRemoteDataSource(get()) }
-    single<NewChatRepository> { DefaultNewChatRepository(get(), get(), get()) }
+    single<NewChatRepository> { DefaultNewChatRepository(get(), get(), get(), get()) }
 }

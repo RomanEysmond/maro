@@ -1,10 +1,16 @@
 package com.maro.feature.chat.data
 
+import com.maro.core.database.chat.ChatEntity
+import com.maro.core.database.chat.ChatMemberEntity
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
 import com.maro.core.database.message.MessageWithReceipts
+import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatMember
 import com.maro.feature.chat.domain.Message
 import com.maro.feature.chat.domain.MessageStatus
+import com.maro.feature.chat.domain.SystemEvent
+import com.maro.feature.chat.domain.SystemEventKind
 
 private const val MICROS_PER_MILLI = 1_000L
 
@@ -16,7 +22,23 @@ internal fun MessageEntity.toDomain(currentUserId: String?): Message = Message(
     createdAt = createdAt,
     status = runCatching { MessageStatus.valueOf(status) }.getOrDefault(MessageStatus.FAILED),
     isOutgoing = senderId == currentUserId,
+    systemEvent = if (type == MessageEntity.TYPE_SYSTEM) toSystemEvent() else null,
 )
+
+private fun MessageEntity.toSystemEvent(): SystemEvent? {
+    val kind = when (eventKind) {
+        "created" -> SystemEventKind.CREATED
+        "added" -> SystemEventKind.ADDED
+        "left" -> SystemEventKind.LEFT
+        "renamed" -> SystemEventKind.RENAMED
+        else -> return null
+    }
+    return SystemEvent(
+        kind = kind,
+        targetIds = eventTargets?.split(',')?.filter { it.isNotEmpty() }.orEmpty(),
+        title = eventTitle,
+    )
+}
 
 /**
  * An outgoing message the server has is SENT until the other side's marks pass it: delivered first, then read
@@ -41,6 +63,10 @@ internal fun RemoteMessage.toEntity(): MessageEntity = MessageEntity(
     text = text,
     createdAt = createdAtMicros / MICROS_PER_MILLI,
     status = MessageStatus.SENT.name,
+    type = if (systemEvent != null) MessageEntity.TYPE_SYSTEM else MessageEntity.TYPE_TEXT,
+    eventKind = systemEvent?.kind,
+    eventTargets = systemEvent?.targets?.joinToString(","),
+    eventTitle = systemEvent?.title,
 )
 
 internal fun MessageEntity.toRemote(): RemoteMessage = RemoteMessage(
@@ -86,3 +112,34 @@ internal fun MessageSyncEntity?.extendedWith(
         reachedStart = this?.reachedStart == true || reachedStart,
     )
 }
+
+internal fun ChatMemberEntity.toDomain(): ChatMember = ChatMember(
+    id = userId,
+    firstName = firstName,
+    lastName = lastName,
+    username = username,
+    isMember = isMember,
+)
+
+internal fun ChatEntity.toHeader(members: List<ChatMember>, currentUserId: String?): ChatHeader {
+    if (type == "group") {
+        val title = title.orEmpty()
+        return ChatHeader(
+            title = title,
+            initials = initialsOf(title.split(' ')),
+            isGroup = true,
+            members = members,
+            canManage = createdBy != null && createdBy == currentUserId,
+            createdBy = createdBy,
+        )
+    }
+    val name = listOf(otherUserFirstName, otherUserLastName).filter { it.isNotBlank() }
+    return ChatHeader(title = name.joinToString(" "), initials = initialsOf(name), members = members)
+}
+
+/** The first letters of the first two words: "Иван Иванов" -> "ИИ", "Поход в горы" -> "ПВ". */
+private fun initialsOf(words: List<String>): String =
+    words.filter { it.isNotBlank() }.take(2)
+        .mapNotNull { it.trim().firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }

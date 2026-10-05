@@ -9,12 +9,14 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.maro.core.data.AndroidConnectivityObserver
 import com.maro.core.data.FcmPushRegistrar
 import com.maro.core.data.FirebaseIdTokenProvider
+import com.maro.core.data.FirestoreUserDirectory
 import com.maro.core.data.FirebaseCurrentUserProvider
 import com.maro.core.data.network.HttpClientFactory
 import com.maro.core.domain.auth.CurrentUserProvider
 import com.maro.core.domain.auth.IdTokenProvider
 import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.push.PushRegistrar
+import com.maro.core.domain.user.UserDirectory
 import io.ktor.client.engine.android.Android
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
@@ -33,6 +35,7 @@ val firebaseCoreModule = module {
     single<CurrentUserProvider> { FirebaseCurrentUserProvider(get()) }
     single<ConnectivityObserver> { AndroidConnectivityObserver(androidContext()) }
     single<IdTokenProvider> { FirebaseIdTokenProvider(get()) }
+    single<UserDirectory> { FirestoreUserDirectory(get()) }
     single<PushRegistrar> {
         FcmPushRegistrar(get(), get(), FirebaseMessaging.getInstance(), FirebaseInstallations.getInstance())
     }

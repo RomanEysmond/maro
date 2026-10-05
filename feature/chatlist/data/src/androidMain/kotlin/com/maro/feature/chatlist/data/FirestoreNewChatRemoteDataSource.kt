@@ -3,42 +3,16 @@ package com.maro.feature.chatlist.data
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
-import com.google.firebase.firestore.Source
 import com.maro.core.data.await
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
-import com.maro.feature.chatlist.domain.FoundUser
 import kotlin.coroutines.cancellation.CancellationException
 
-/**
- * Looks people up in `usernames/{name}` (the public card: uid + name) and creates `chats/{chatId}`;
- * both shapes are enforced by `firestore.rules`.
- */
+/** Creates `chats/{chatId}`: direct chats and groups; the shapes are enforced by `firestore.rules`. */
 internal class FirestoreNewChatRemoteDataSource(
     private val firestore: FirebaseFirestore,
 ) : NewChatRemoteDataSource {
-
-    override suspend fun findUser(username: String): Result<FoundUser?, DataError.Network> {
-        return try {
-            // Source.SERVER for the same reason as the chat list: offline must be an error, not "nobody found".
-            val card = firestore.collection(USERNAMES).document(username).get(Source.SERVER).await()
-            if (!card.exists()) return Result.Success(null)
-            Result.Success(
-                FoundUser(
-                    id = card.getString("uid") ?: return Result.Success(null),
-                    // A card written before names were public has no name yet: the owner fixes it by saving the profile.
-                    firstName = card.getString("firstName") ?: return Result.Success(null),
-                    lastName = card.getString("lastName").orEmpty(),
-                    username = username,
-                ),
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.Error(e.toNetworkError())
-        }
-    }
 
     override suspend fun createChatIfAbsent(
         chatId: String,
@@ -55,13 +29,7 @@ internal class FirestoreNewChatRemoteDataSource(
                     mapOf(
                         "type" to "direct",
                         "participants" to participants.map { it.id },
-                        "participantInfo" to participants.associate { card ->
-                            card.id to buildMap<String, Any> {
-                                put("firstName", card.firstName)
-                                put("lastName", card.lastName)
-                                card.username?.let { put("username", it) }
-                            }
-                        },
+                        "participantInfo" to participants.associate { it.id to it.toInfo() },
                         "updatedAt" to now,
                         "createdAt" to now,
                     ),
@@ -74,6 +42,60 @@ internal class FirestoreNewChatRemoteDataSource(
         } catch (e: Exception) {
             Result.Error(e.toNetworkError())
         }
+    }
+
+    override suspend fun createGroup(
+        chatId: String,
+        title: String,
+        creatorId: String,
+        participants: List<ParticipantCard>,
+        systemMessageId: String,
+    ): EmptyResult<DataError.Network> {
+        val chatRef = firestore.collection(CHATS).document(chatId)
+        val now = FieldValue.serverTimestamp()
+        return try {
+            // One batch: the group never exists without its "created" message, nor the message without the group.
+            firestore.batch()
+                .set(
+                    chatRef,
+                    mapOf(
+                        "type" to "group",
+                        "title" to title,
+                        "createdBy" to creatorId,
+                        "participants" to participants.map { it.id },
+                        "participantInfo" to participants.associate { it.id to it.toInfo() },
+                        "updatedAt" to now,
+                        "createdAt" to now,
+                    ),
+                )
+                .set(
+                    chatRef.collection(MESSAGES).document(systemMessageId),
+                    mapOf(
+                        "senderId" to creatorId,
+                        "type" to "system",
+                        "event" to mapOf(
+                            "kind" to "created",
+                            "targets" to participants.map { it.id }.filter { it != creatorId },
+                            "title" to title,
+                        ),
+                        "createdAt" to now,
+                        "clientId" to systemMessageId,
+                    ),
+                )
+                .commit()
+                .await()
+            Result.Success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.Error(e.toNetworkError())
+        }
+    }
+
+    private fun ParticipantCard.toInfo(): Map<String, Any> = buildMap {
+        put("firstName", firstName)
+        put("lastName", lastName)
+        username?.let { put("username", it) }
     }
 
     private fun Exception.toNetworkError(): DataError.Network {
@@ -89,7 +111,7 @@ internal class FirestoreNewChatRemoteDataSource(
     }
 
     private companion object {
-        const val USERNAMES = "usernames"
         const val CHATS = "chats"
+        const val MESSAGES = "messages"
     }
 }

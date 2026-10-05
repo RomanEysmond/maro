@@ -31,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -83,15 +84,8 @@ class DefaultMessageRepository(
         }
 
     override fun chatHeader(chatId: String): Flow<ChatHeader?> =
-        chatDao.observeById(chatId).map { chat ->
-            chat?.let {
-                val name = listOf(it.otherUserFirstName, it.otherUserLastName).filter { part -> part.isNotBlank() }
-                ChatHeader(
-                    participantName = name.joinToString(" "),
-                    initials = name.mapNotNull { part -> part.trim().firstOrNull()?.uppercaseChar() }
-                        .joinToString("").ifEmpty { "?" },
-                )
-            }
+        combine(chatDao.observeById(chatId), chatDao.observeMembers(chatId)) { chat, members ->
+            chat?.toHeader(members.map { it.toDomain() }, currentUser.userId)
         }
 
     override suspend fun sendMessage(chatId: String, text: String): EmptyResult<SendError> {
@@ -130,8 +124,21 @@ class DefaultMessageRepository(
     override suspend fun incomingMessage(chatId: String, messageId: String): IncomingMessage? {
         val message = messageDao.getById(messageId) ?: return null
         if (message.chatId != chatId || message.senderId == currentUser.userId) return null
-        val sender = chatHeader(chatId).first()?.participantName.orEmpty()
-        return IncomingMessage(chatId = chatId, messageId = messageId, senderName = sender, text = message.text)
+        if (message.type != MessageEntity.TYPE_TEXT) return null
+        val header = chatHeader(chatId).first()
+        // In a group the notification is the group's, with the sender's name in front of the text.
+        val sender = if (header?.isGroup == true) {
+            header.members.firstOrNull { it.id == message.senderId }?.firstName.orEmpty()
+        } else {
+            header?.title.orEmpty()
+        }
+        return IncomingMessage(
+            chatId = chatId,
+            messageId = messageId,
+            senderName = sender,
+            text = message.text,
+            groupTitle = header?.takeIf { it.isGroup }?.title,
+        )
     }
 
     override fun isChatOpen(chatId: String): Boolean = synchronizer.isChatOpen(chatId)

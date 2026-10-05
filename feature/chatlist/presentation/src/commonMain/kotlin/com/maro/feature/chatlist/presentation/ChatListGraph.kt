@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.maro.feature.chatlist.presentation.newchat.NewChatRoot
+import com.maro.feature.chatlist.presentation.newgroup.NewGroupRoot
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -15,6 +16,9 @@ data object ChatListRoute
 
 @Serializable
 data object NewChatRoute
+
+@Serializable
+data object NewGroupRoute
 
 /** Navigation graph of the chat list. Every destination outside this feature is a callback. */
 fun NavGraphBuilder.chatListGraph(
@@ -40,6 +44,17 @@ fun NavGraphBuilder.chatListGraph(
                 onOpenChat = { chatId ->
                     // The search screen is done: back from the conversation goes to the list, not to the search.
                     navController.popBackStack()
+                    onOpenChat(chatId)
+                },
+                onNewGroup = { navController.navigate(NewGroupRoute) },
+            )
+        }
+        composable<NewGroupRoute> {
+            NewGroupRoot(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenChat = { chatId ->
+                    // Back from the new group goes to the list: neither the form nor the search is wanted again.
+                    navController.popBackStack(ChatListRoute, inclusive = false)
                     onOpenChat(chatId)
                 },
             )

@@ -65,22 +65,35 @@ internal class FirestoreChatRemoteDataSource(
     private fun query(uid: String) = firestore.collection(CHATS).whereArrayContains(FIELD_PARTICIPANTS, uid)
 
     private fun DocumentSnapshot.toChat(currentUid: String): Chat? {
-        val type = getString(FIELD_TYPE) ?: return null
-        val participants = get(FIELD_PARTICIPANTS) as? List<*> ?: return null
-        val otherUid = participants.filterIsInstance<String>().firstOrNull { it != currentUid } ?: return null
-        @Suppress("UNCHECKED_CAST")
-        val otherInfo = (get(FIELD_PARTICIPANT_INFO) as? Map<String, Map<String, Any?>>)?.get(otherUid) ?: return null
+        val isGroup = getString(FIELD_TYPE) == "group"
+        val members = (get(FIELD_PARTICIPANTS) as? List<*>)?.filterIsInstance<String>() ?: return null
+        val info = get(FIELD_PARTICIPANT_INFO) as? Map<*, *> ?: return null
+        // participantInfo also keeps people who have left a group: their names stay for the history.
+        val participants = info.mapNotNull { (uid, card) ->
+            val fields = card as? Map<*, *> ?: return@mapNotNull null
+            ChatParticipant(
+                id = uid as? String ?: return@mapNotNull null,
+                firstName = fields["firstName"] as? String ?: return@mapNotNull null,
+                lastName = fields["lastName"] as? String ?: "",
+                username = fields["username"] as? String,
+                isMember = uid in members,
+            )
+        }
+        val otherParticipant = if (isGroup) {
+            null
+        } else {
+            val otherUid = members.firstOrNull { it != currentUid } ?: return null
+            participants.firstOrNull { it.id == otherUid } ?: return null
+        }
 
         val lastMessageText = getString(FIELD_LAST_MESSAGE_TEXT)
         return Chat(
             id = id,
-            type = if (type == "group") ChatType.GROUP else ChatType.DIRECT,
-            otherParticipant = ChatParticipant(
-                id = otherUid,
-                firstName = otherInfo["firstName"] as? String ?: return null,
-                lastName = otherInfo["lastName"] as? String ?: "",
-                username = otherInfo["username"] as? String,
-            ),
+            type = if (isGroup) ChatType.GROUP else ChatType.DIRECT,
+            otherParticipant = otherParticipant,
+            title = if (isGroup) getString(FIELD_TITLE).orEmpty() else null,
+            createdBy = if (isGroup) getString(FIELD_CREATED_BY) else null,
+            participants = participants,
             lastMessage = lastMessageText?.let { text ->
                 LastMessage(
                     text = text,
@@ -90,7 +103,7 @@ internal class FirestoreChatRemoteDataSource(
             },
             updatedAt = getTimestamp(FIELD_UPDATED_AT)?.toDate()?.time ?: 0L,
             myReadAt = receiptAt(FIELD_LAST_READ) { it == currentUid },
-            // "At least one of the others": the newest mark among everybody but the user (stage 6: groups).
+            // "At least one of the others": the newest mark among everybody but the user.
             peerReadAt = receiptAt(FIELD_LAST_READ) { it != currentUid },
             peerDeliveredAt = receiptAt(FIELD_LAST_DELIVERED) { it != currentUid },
         )
@@ -120,6 +133,8 @@ internal class FirestoreChatRemoteDataSource(
     private companion object {
         const val CHATS = "chats"
         const val FIELD_TYPE = "type"
+        const val FIELD_TITLE = "title"
+        const val FIELD_CREATED_BY = "createdBy"
         const val FIELD_PARTICIPANTS = "participants"
         const val FIELD_PARTICIPANT_INFO = "participantInfo"
         const val FIELD_LAST_MESSAGE_TEXT = "lastMessageText"

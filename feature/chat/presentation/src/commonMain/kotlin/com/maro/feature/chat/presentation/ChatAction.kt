@@ -6,6 +6,9 @@ sealed interface ChatAction {
     data class OnRetryClick(val messageId: String) : ChatAction
     data object OnBackClick : ChatAction
 
+    /** The top bar: opens the group's screen (nothing in a direct chat). */
+    data object OnHeaderClick : ChatAction
+
     /** The screen came to the front (resumed) or left it. */
     data class OnVisibilityChange(val isVisible: Boolean) : ChatAction
 }

@@ -224,19 +224,21 @@ private fun ChatListItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        InitialsAvatar(initials = chat.otherParticipant.initials)
+        InitialsAvatar(initials = chat.initials)
 
         Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = chat.otherParticipant.fullName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+            Text(text = chat.displayName, style = MaterialTheme.typography.titleMedium, maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 chat.lastMessage?.receipt?.let { receipt ->
                     ReceiptIcon(receipt)
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 Text(
-                    text = chat.lastMessage?.text ?: stringResource(Res.string.chat_list_no_messages_yet),
+                    text = chat.lastMessage?.let { message ->
+                        message.senderName?.let { "$it: ${message.text}" } ?: message.text
+                    } ?: stringResource(Res.string.chat_list_no_messages_yet),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     maxLines = 1,

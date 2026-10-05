@@ -3,7 +3,6 @@ package com.maro.feature.chatlist.domain
 enum class ChatType {
     DIRECT,
 
-    /** Arrives in stage 6. */
     GROUP,
 }
 
@@ -13,6 +12,8 @@ data class ChatParticipant(
     val firstName: String,
     val lastName: String,
     val username: String?,
+    /** `false` for someone who has left the group (their name stays known for the history). */
+    val isMember: Boolean = true,
 ) {
     val fullName: String
         get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
@@ -37,13 +38,21 @@ data class LastMessage(
     /** Epoch millis. */
     val sentAt: Long,
     val receipt: LastMessageReceipt? = null,
+    /** Groups: the first name of whoever wrote it ("Anna: …"); `null` in a direct chat or for the user's own message. */
+    val senderName: String? = null,
 )
 
 data class Chat(
     val id: String,
     val type: ChatType,
-    /** The other side of a direct chat. Group chats (stage 6) will need a different shape here. */
-    val otherParticipant: ChatParticipant,
+    /** The other side of a direct chat; `null` for a group. */
+    val otherParticipant: ChatParticipant?,
+    /** Groups only. */
+    val title: String? = null,
+    /** Groups only: who may rename it and add people. */
+    val createdBy: String? = null,
+    /** Everyone known on the chat (as written on it), including people who have left a group. */
+    val participants: List<ChatParticipant> = emptyList(),
     /** `null` until the first message is sent (stage 4). */
     val lastMessage: LastMessage?,
     /** Epoch millis; drives the list order. */
@@ -54,4 +63,18 @@ data class Chat(
     val myReadAt: Long? = null,
     val peerReadAt: Long? = null,
     val peerDeliveredAt: Long? = null,
-)
+) {
+    /** What the list shows as the chat's name. */
+    val displayName: String
+        get() = if (type == ChatType.GROUP) title.orEmpty() else otherParticipant?.fullName.orEmpty()
+
+    val initials: String
+        get() = if (type == ChatType.GROUP) groupInitials(title.orEmpty()) else otherParticipant?.initials ?: "?"
+}
+
+/** "Поход в горы" -> "ПВ": the first letters of the first two words. */
+fun groupInitials(title: String): String =
+    title.split(' ').filter { it.isNotBlank() }.take(2)
+        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+        .joinToString("")
+        .ifEmpty { "?" }

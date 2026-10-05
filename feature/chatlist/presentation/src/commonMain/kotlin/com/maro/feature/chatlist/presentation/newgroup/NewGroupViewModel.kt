@@ -1,0 +1,86 @@
+package com.maro.feature.chatlist.presentation.newgroup
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.maro.core.domain.chat.GroupRules
+import com.maro.core.domain.profile.ProfileRules
+import com.maro.core.domain.util.Result
+import com.maro.core.presentation.util.UiText
+import com.maro.feature.chatlist.domain.NewChatRepository
+import com.maro.feature.chatlist.presentation.generated.resources.Res
+import com.maro.feature.chatlist.presentation.generated.resources.new_group_already_added
+import com.maro.feature.chatlist.presentation.util.toUiText
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+class NewGroupViewModel(
+    private val repository: NewChatRepository,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(NewGroupState())
+    val state = _state.asStateFlow()
+
+    private val _events = Channel<NewGroupEvent>()
+    val events = _events.receiveAsFlow()
+
+    fun onAction(action: NewGroupAction) {
+        when (action) {
+            is NewGroupAction.OnTitleChange -> _state.update {
+                it.copy(title = action.value.take(GroupRules.MAX_TITLE_LENGTH), error = null)
+            }
+            is NewGroupAction.OnQueryChange -> _state.update { it.copy(query = sanitize(action.value), error = null) }
+            NewGroupAction.OnAddClick -> addMember()
+            is NewGroupAction.OnRemoveClick -> _state.update { state ->
+                state.copy(members = state.members.filter { it.id != action.userId })
+            }
+            NewGroupAction.OnCreateClick -> create()
+            NewGroupAction.OnBackClick -> viewModelScope.launch { _events.send(NewGroupEvent.NavigateBack) }
+        }
+    }
+
+    private fun addMember() {
+        val current = _state.value
+        if (!current.canAdd) return
+
+        _state.update { it.copy(isSearching = true, error = null) }
+        viewModelScope.launch {
+            when (val result = repository.findUser(current.query)) {
+                is Result.Error -> _state.update { it.copy(isSearching = false, error = result.error.toUiText()) }
+                is Result.Success -> _state.update { state ->
+                    if (state.members.any { it.id == result.data.id }) {
+                        state.copy(isSearching = false, error = UiText.Resource(Res.string.new_group_already_added))
+                    } else {
+                        // Ready for the next name right away.
+                        state.copy(isSearching = false, query = "", members = state.members + result.data)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun create() {
+        val current = _state.value
+        if (!current.canCreate) return
+
+        _state.update { it.copy(isCreating = true, error = null) }
+        viewModelScope.launch {
+            when (val result = repository.createGroup(current.title, current.members)) {
+                is Result.Success -> {
+                    _state.update { it.copy(isCreating = false) }
+                    _events.send(NewGroupEvent.NavigateToChat(result.data))
+                }
+                is Result.Error -> _state.update { it.copy(isCreating = false, error = result.error.toUiText()) }
+            }
+        }
+    }
+
+    /** Lets only what a username may contain through (an "@" typed by habit is dropped). */
+    private fun sanitize(raw: String): String =
+        ProfileRules.normalizeUsername(raw)
+            .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
+            .take(ProfileRules.MAX_USERNAME_LENGTH)
+}
