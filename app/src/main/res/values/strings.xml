@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">Maro</string>
-    <string name="notification_channel_messages">Сообщения</string>
-    <string name="notification_new_message">Новое сообщение</string>
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_new_message">New message</string>
 </resources>

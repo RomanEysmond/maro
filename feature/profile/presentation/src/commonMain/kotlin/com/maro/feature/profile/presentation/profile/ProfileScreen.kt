@@ -51,6 +51,22 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import com.maro.feature.profile.presentation.generated.resources.profile_account
+import com.maro.feature.profile.presentation.generated.resources.profile_account_subtitle
+import com.maro.feature.profile.presentation.generated.resources.profile_chats
+import com.maro.feature.profile.presentation.generated.resources.profile_chats_subtitle
+import com.maro.feature.profile.presentation.generated.resources.profile_dark_theme
+import com.maro.feature.profile.presentation.generated.resources.profile_help
+import com.maro.feature.profile.presentation.generated.resources.profile_language
+import com.maro.feature.profile.presentation.generated.resources.profile_language_current
+import com.maro.feature.profile.presentation.generated.resources.profile_logout
+import com.maro.feature.profile.presentation.generated.resources.profile_notifications
+import com.maro.feature.profile.presentation.generated.resources.profile_notifications_subtitle
+import com.maro.feature.profile.presentation.generated.resources.profile_privacy
+import com.maro.feature.profile.presentation.generated.resources.profile_section_main
+import com.maro.feature.profile.presentation.generated.resources.profile_section_more
+import com.maro.feature.profile.presentation.generated.resources.profile_storage
+import com.maro.feature.profile.presentation.generated.resources.profile_storage_subtitle
 
 @Composable
 fun ProfileRoot(
@@ -82,7 +98,6 @@ fun ProfileScreen(
 
     var darkThemeEnabled by remember { mutableStateOf(false) }
     var notificationEnabled by remember { mutableStateOf(true) }
-    var selectedLanguage by remember { mutableStateOf("Русский") }
 
     Surface(
         modifier = androidx.compose.ui.Modifier.fillMaxSize(),
@@ -95,57 +110,57 @@ fun ProfileScreen(
             Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
 
             // Основные настройки
-            SettingsCategory(title = "Основные") {
+            SettingsCategory(title = stringResource(Res.string.profile_section_main)) {
                 SettingsItem(
                     icon = Icons.Default.Person,
-                    title = "Учетная запись",
-                    subtitle = "Имя, @имя, о себе, дата рождения",
+                    title = stringResource(Res.string.profile_account),
+                    subtitle = stringResource(Res.string.profile_account_subtitle),
                     showChevron = true,
                     onClick = { onAction(ProfileAction.OnEditClick) },
                 )
                 SettingsItem(
                     icon = Icons.AutoMirrored.Filled.Chat,
-                    title = "Чаты",
-                    subtitle = "Тема, фон, история"
+                    title = stringResource(Res.string.profile_chats),
+                    subtitle = stringResource(Res.string.profile_chats_subtitle)
                 )
                 SettingsItem(
                     icon = Icons.Default.Notifications,
-                    title = "Уведомления",
-                    subtitle = "Звуки, вибрация"
+                    title = stringResource(Res.string.profile_notifications),
+                    subtitle = stringResource(Res.string.profile_notifications_subtitle)
                 )
                 SwitchSettingsItem(
                     icon = Icons.Default.DarkMode,
-                    title = "Темная тема",
+                    title = stringResource(Res.string.profile_dark_theme),
                     checked = darkThemeEnabled,
                     onCheckedChange = { darkThemeEnabled = it }
                 )
                 SettingsItem(
                     icon = Icons.Default.Translate,
-                    title = "Язык",
-                    subtitle = selectedLanguage,
+                    title = stringResource(Res.string.profile_language),
+                    subtitle = stringResource(Res.string.profile_language_current),
                     showChevron = true,
-                    onClick = { /* Открыть выбор языка */ }
+                    onClick = { /* Язык приложения — в настройках Android (Android 13+) */ }
                 )
             }
 
             Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
 
             // Дополнительные настройки
-            SettingsCategory(title = "Дополнительно") {
+            SettingsCategory(title = stringResource(Res.string.profile_section_more)) {
                 SettingsItem(
                     icon = Icons.Default.Storage,
-                    title = "Хранилище и данные",
-                    subtitle = "Использование сети, память"
+                    title = stringResource(Res.string.profile_storage),
+                    subtitle = stringResource(Res.string.profile_storage_subtitle)
                 )
                 SwitchSettingsItem(
                     icon = Icons.Default.Security,
-                    title = "Конфиденциальность",
+                    title = stringResource(Res.string.profile_privacy),
                     checked = notificationEnabled,
                     onCheckedChange = { notificationEnabled = it }
                 )
                 SettingsItem(
                     icon = Icons.AutoMirrored.Filled.Help,
-                    title = "Помощь",
+                    title = stringResource(Res.string.profile_help),
                     showChevron = true
                 )
             }
@@ -160,7 +175,7 @@ fun ProfileScreen(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "Выйти",
+                    text = stringResource(Res.string.profile_logout),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyLarge
                 )
@@ -306,7 +321,7 @@ private fun SettingsItem(
         if (showChevron) {
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Перейти",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
             )
         }

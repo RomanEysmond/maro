@@ -19,6 +19,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.maro.feature.profile.presentation.generated.resources.Res
+import com.maro.feature.profile.presentation.generated.resources.help_back
+import com.maro.feature.profile.presentation.generated.resources.help_contact_call
+import com.maro.feature.profile.presentation.generated.resources.help_contact_email
+import com.maro.feature.profile.presentation.generated.resources.help_contact_site
+import com.maro.feature.profile.presentation.generated.resources.help_contacts
+import com.maro.feature.profile.presentation.generated.resources.help_faq
+import com.maro.feature.profile.presentation.generated.resources.help_faq_change_phone
+import com.maro.feature.profile.presentation.generated.resources.help_faq_create_group
+import com.maro.feature.profile.presentation.generated.resources.help_faq_hide_last_seen
+import com.maro.feature.profile.presentation.generated.resources.help_features
+import com.maro.feature.profile.presentation.generated.resources.help_features_text
+import com.maro.feature.profile.presentation.generated.resources.help_heading
+import com.maro.feature.profile.presentation.generated.resources.help_subheading
+import com.maro.feature.profile.presentation.generated.resources.help_support_chat
+import com.maro.feature.profile.presentation.generated.resources.help_support_chat_text
+import com.maro.feature.profile.presentation.generated.resources.help_title
+import org.jetbrains.compose.resources.stringResource
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,10 +50,10 @@ fun HelpScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Помощь") },
+                title = { Text(stringResource(Res.string.help_title)) },
                 navigationIcon = {
                     IconButton(onClick = { onNavigateBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.help_back))
                     }
                 }
             )
@@ -57,19 +75,19 @@ fun HelpScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Help,
-                        contentDescription = "Помощь",
+                        contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Как мы можем помочь?",
+                        text = stringResource(Res.string.help_heading),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Выберите нужный раздел или напишите в поддержку",
+                        text = stringResource(Res.string.help_subheading),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
                     )
@@ -89,8 +107,8 @@ fun HelpScreen(
                 ) {
                     HelpItem(
                         icon = Icons.AutoMirrored.Filled.Chat,
-                        title = "Чат поддержки",
-                        description = "Напишите нам, мы ответим в течение 24 часов",
+                        title = stringResource(Res.string.help_support_chat),
+                        description = stringResource(Res.string.help_support_chat_text),
                         onClick = { /*navController.navigate("support_chat")*/ }
                     )
 
@@ -102,8 +120,8 @@ fun HelpScreen(
 
                     HelpItem(
                         icon = Icons.Default.Info,
-                        title = "Возможности приложения",
-                        description = "Узнайте обо всех функциях нашего мессенджера",
+                        title = stringResource(Res.string.help_features),
+                        description = stringResource(Res.string.help_features_text),
                         onClick = {/* navController.navigate("features")*/ }
                     )
                 }
@@ -112,7 +130,7 @@ fun HelpScreen(
             // FAQ раздел
             item {
                 Text(
-                    text = "Частые вопросы",
+                    text = stringResource(Res.string.help_faq),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
@@ -128,9 +146,9 @@ fun HelpScreen(
                     )
                 ) {
                     listOf(
-                        "Как изменить номер телефона?",
-                        "Как скрыть последнее посещение?",
-                        "Как создать групповой чат?"
+                        stringResource(Res.string.help_faq_change_phone),
+                        stringResource(Res.string.help_faq_hide_last_seen),
+                        stringResource(Res.string.help_faq_create_group)
                     ).forEachIndexed { index, question ->
                         if (index > 0) {
                             HorizontalDivider(
@@ -157,7 +175,7 @@ fun HelpScreen(
             // Контакты
             item {
                 Text(
-                    text = "Другие способы связи",
+                    text = stringResource(Res.string.help_contacts),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
@@ -176,17 +194,17 @@ fun HelpScreen(
                 ) {
                     ContactOption(
                         icon = Icons.Default.Email,
-                        label = "Email",
+                        label = stringResource(Res.string.help_contact_email),
                         onClick = { /* Открыть почту */ }
                     )
                     ContactOption(
                         icon = Icons.Default.Web,
-                        label = "Сайт",
+                        label = stringResource(Res.string.help_contact_site),
                         onClick = { /* Открыть сайт */ }
                     )
                     ContactOption(
                         icon = Icons.Default.Phone,
-                        label = "Звонок",
+                        label = stringResource(Res.string.help_contact_call),
                         onClick = { /* Позвонить */ }
                     )
                 }
@@ -230,7 +248,7 @@ fun HelpItem(
         }
         Icon(
             imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Перейти",
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
     }
@@ -252,7 +270,7 @@ fun FAQItem(question: String, onClick: () -> Unit) {
         )
         Icon(
             imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Перейти",
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
     }

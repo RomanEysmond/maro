@@ -1,0 +1,4 @@
+<resources>
+    <string name="notification_channel_messages">Сообщения</string>
+    <string name="notification_new_message">Новое сообщение</string>
+</resources>

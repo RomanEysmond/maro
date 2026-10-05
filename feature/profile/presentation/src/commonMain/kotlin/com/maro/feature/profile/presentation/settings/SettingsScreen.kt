@@ -20,9 +20,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.maro.core.design_system.generated.resources.Res
+import com.maro.core.design_system.generated.resources.Res as DesignRes
 import com.maro.core.design_system.generated.resources.logo
 import org.jetbrains.compose.resources.painterResource
+import com.maro.feature.profile.presentation.generated.resources.Res
+import com.maro.feature.profile.presentation.generated.resources.settings_about
+import com.maro.feature.profile.presentation.generated.resources.settings_account
+import com.maro.feature.profile.presentation.generated.resources.settings_chats
+import com.maro.feature.profile.presentation.generated.resources.settings_help
+import com.maro.feature.profile.presentation.generated.resources.settings_invite
+import com.maro.feature.profile.presentation.generated.resources.settings_logout
+import com.maro.feature.profile.presentation.generated.resources.settings_notifications
+import com.maro.feature.profile.presentation.generated.resources.settings_privacy
+import com.maro.feature.profile.presentation.generated.resources.settings_search
+import com.maro.feature.profile.presentation.generated.resources.settings_storage
+import com.maro.feature.profile.presentation.generated.resources.settings_title
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,10 +45,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Настройки") },
+                title = { Text(stringResource(Res.string.settings_title)) },
                 actions = {
                     IconButton(onClick = { /* Действие поиска */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Поиск 2")
+                        Icon(Icons.Default.Search, contentDescription = stringResource(Res.string.settings_search))
                     }
                 }
             )
@@ -57,8 +70,8 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        painter = painterResource(Res.drawable.logo),
-                        contentDescription = "Аватар",
+                        painter = painterResource(DesignRes.drawable.logo),
+                        contentDescription = null,
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape),
@@ -81,40 +94,40 @@ fun SettingsScreen(
 
             // Раздел настроек 1
             item {
-                SettingsSection(title = "Учетная запись") {
+                SettingsSection(title = stringResource(Res.string.settings_account)) {
                     SettingsItem(
                         icon = Icons.Default.Security,
-                        text = "Конфиденциальность",
+                        text = stringResource(Res.string.settings_privacy),
                         showDivider = true
                     )
                     SettingsItem(
                         icon = Icons.AutoMirrored.Filled.Chat,
-                        text = "Чаты",
+                        text = stringResource(Res.string.settings_chats),
                         showDivider = true
                     )
                     SettingsItem(
                         icon = Icons.Default.Notifications,
-                        text = "Уведомления",
+                        text = stringResource(Res.string.settings_notifications),
                         showDivider = true
                     )
                     SettingsItem(
                         icon = Icons.Default.Storage,
-                        text = "Хранилище и данные"
+                        text = stringResource(Res.string.settings_storage)
                     )
                 }
             }
 
             // Раздел настроек 2
             item {
-                SettingsSection(title = "О программе") {
+                SettingsSection(title = stringResource(Res.string.settings_about)) {
                     SettingsItem(
                         icon = Icons.Default.Info,
-                        text = "Помощь",
+                        text = stringResource(Res.string.settings_help),
                         showDivider = true
                     )
                     SettingsItem(
                         icon = Icons.Default.People,
-                        text = "Пригласить друзей"
+                        text = stringResource(Res.string.settings_invite)
                     )
                 }
             }
@@ -122,7 +135,7 @@ fun SettingsScreen(
             // Выход
             item {
                 Text(
-                    text = "Выйти",
+                    text = stringResource(Res.string.settings_logout),
                     color = Color.Red,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -189,7 +202,7 @@ fun SettingsItem(
             )
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Перейти",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }

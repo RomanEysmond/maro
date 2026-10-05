@@ -1,0 +1,47 @@
+<resources>
+    <string name="chat_back">Назад</string>
+    <string name="chat_input_hint">Сообщение</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_empty">Напишите первое сообщение</string>
+    <string name="chat_status_sending">Отправляется</string>
+    <string name="chat_status_sent">Отправлено</string>
+    <string name="chat_status_failed">Не отправлено. Нажмите, чтобы повторить</string>
+    <string name="chat_updating">Обновление…</string>
+    <string name="chat_waiting_for_network">Ожидание сети…</string>
+    <string name="chat_history_error">Не удалось загрузить сообщения</string>
+    <string name="chat_history_retry">Повторить</string>
+    <string name="chat_typing">печатает…</string>
+    <string name="chat_status_delivered">Доставлено</string>
+    <string name="chat_status_read">Прочитано</string>
+    <string name="chat_typing_named">%1$s печатает…</string>
+    <string name="chat_typing_several">Несколько человек печатают…</string>
+    <plurals name="chat_members">
+        <item quantity="one">%1$d участник</item>
+        <item quantity="few">%1$d участника</item>
+        <item quantity="many">%1$d участников</item>
+        <item quantity="other">%1$d участника</item>
+    </plurals>
+    <string name="chat_event_created">%1$s создаёт группу «%2$s»</string>
+    <string name="chat_event_added">%1$s добавляет в группу: %2$s</string>
+    <string name="chat_event_left">%1$s покидает группу</string>
+    <string name="chat_event_renamed">%1$s меняет название группы на «%2$s»</string>
+    <string name="group_info_title">О группе</string>
+    <string name="group_info_rename">Изменить название</string>
+    <string name="group_info_rename_title">Название группы</string>
+    <string name="group_info_save">Сохранить</string>
+    <string name="group_info_cancel">Отмена</string>
+    <string name="group_info_add">Добавить</string>
+    <string name="group_info_add_hint">Добавить участника по имени пользователя</string>
+    <string name="group_info_creator">создатель</string>
+    <string name="group_info_leave">Выйти из группы</string>
+    <string name="group_info_leave_text">Вы перестанете получать сообщения этой группы. Вернуть вас сможет только её создатель.</string>
+    <string name="group_info_leave_text_creator">Вы перестанете получать сообщения этой группы. Права создателя перейдут следующему участнику.</string>
+    <string name="group_info_leave_confirm">Выйти</string>
+    <string name="group_error_invalid_title">Название группы: от 1 до 64 символов</string>
+    <string name="group_error_not_allowed">Это может только создатель группы</string>
+    <string name="group_error_already_member">Этот человек уже в группе</string>
+    <string name="group_error_too_many">В группе может быть не больше 50 человек</string>
+    <string name="group_error_invalid_username">Имя пользователя: от 5 до 32 символов, латиница, цифры и «_», начинается с буквы</string>
+    <string name="group_error_not_found">Пользователь не найден</string>
+    <string name="chat_retry_action">Повторить отправку</string>
+</resources>

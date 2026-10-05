@@ -1,15 +1,24 @@
 <resources>
-    <string name="auth_error_invalid_phone">Неверный номер телефона</string>
-    <string name="auth_error_invalid_code">Неверный код. Проверьте и попробуйте ещё раз</string>
-    <string name="auth_error_code_expired">Код устарел. Запросите новый</string>
-    <string name="auth_error_too_many_requests">Слишком много попыток. Попробуйте позже</string>
-    <string name="auth_error_network">Нет подключения к интернету</string>
+    <string name="auth_error_invalid_phone">Invalid phone number</string>
+    <string name="auth_error_invalid_code">Wrong code. Check it and try again</string>
+    <string name="auth_error_code_expired">The code has expired. Request a new one</string>
+    <string name="auth_error_too_many_requests">Too many attempts. Please try later</string>
+    <string name="auth_error_network">No internet connection</string>
 
-    <string name="verify_title">Код подтверждения</string>
-    <string name="verify_subtitle">Мы отправили SMS с кодом на %1$s</string>
-    <string name="verify_code_label">Код из SMS</string>
-    <string name="verify_confirm">Подтвердить</string>
-    <string name="verify_resend">Отправить код повторно</string>
-    <string name="verify_resend_timer">Отправить повторно через %1$d с</string>
-    <string name="verify_back">Назад</string>
+    <string name="verify_title">Verification code</string>
+    <string name="verify_subtitle">We sent an SMS with a code to %1$s</string>
+    <string name="verify_code_label">Code from SMS</string>
+    <string name="verify_confirm">Confirm</string>
+    <string name="verify_resend">Resend code</string>
+    <string name="verify_resend_timer">Resend in %1$d s</string>
+    <string name="verify_back">Back</string>
+
+    <string name="registration_title">Sign up</string>
+    <string name="registration_back">Back</string>
+    <string name="registration_phone_title">Enter your phone number</string>
+    <string name="registration_phone_subtitle">We will send an SMS with a confirmation code</string>
+    <string name="registration_first_name">First name</string>
+    <string name="registration_last_name">Last name (optional)</string>
+    <string name="registration_phone">Phone number</string>
+    <string name="registration_continue">Continue</string>
 </resources>

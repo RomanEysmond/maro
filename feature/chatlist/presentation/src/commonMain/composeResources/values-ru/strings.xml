@@ -1,0 +1,36 @@
+<resources>
+    <string name="chat_list_title">Maro</string>
+    <string name="chat_list_menu">Меню</string>
+    <string name="chat_list_empty_title">Пока нет чатов</string>
+    <string name="chat_list_empty_subtitle">Начните переписку — и она появится здесь</string>
+    <string name="chat_list_no_messages_yet">Сообщений пока нет</string>
+    <string name="chat_list_retry">Повторить</string>
+    <string name="chat_list_new_chat">Новый чат</string>
+    <string name="new_chat_title">Новый чат</string>
+    <string name="new_chat_back">Назад</string>
+    <string name="new_chat_username">Имя пользователя</string>
+    <string name="new_chat_hint">Введите @имя человека, которому хотите написать</string>
+    <string name="new_chat_search">Найти</string>
+    <string name="new_chat_error_invalid_username">Имя пользователя: от 5 до 32 символов, латиница, цифры и «_», начинается с буквы</string>
+    <string name="new_chat_error_not_found">Пользователь не найден</string>
+    <string name="new_chat_error_self">Это вы. Выберите другого человека</string>
+    <string name="new_chat_error_no_internet">Нет подключения к интернету</string>
+    <string name="menu_profile">Профиль</string>
+    <string name="menu_settings">Настройки</string>
+    <string name="menu_help">Справка</string>
+    <string name="chat_list_receipt_sent">Отправлено</string>
+    <string name="chat_list_receipt_delivered">Доставлено</string>
+    <string name="chat_list_receipt_read">Прочитано</string>
+    <string name="new_chat_new_group">Новая группа</string>
+    <string name="new_group_title">Новая группа</string>
+    <string name="new_group_title_label">Название группы</string>
+    <string name="new_group_username">Добавить по имени пользователя</string>
+    <string name="new_group_add">Добавить</string>
+    <string name="new_group_remove">Убрать</string>
+    <string name="new_group_members">Участников: %1$d</string>
+    <string name="new_group_create">Создать группу</string>
+    <string name="new_group_already_added">Этот человек уже в списке</string>
+    <string name="new_chat_error_group_title">Название группы: от 1 до 64 символов</string>
+    <string name="new_chat_error_no_members">Добавьте хотя бы одного человека</string>
+    <string name="new_chat_error_too_many">В группе может быть не больше 50 человек</string>
+</resources>
