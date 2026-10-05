@@ -1,0 +1,11 @@
+# Only the push server goes into the Docker build (server/Dockerfile): the wrapper, the version catalog and server/.
+*
+!gradlew
+!gradle/
+!server/
+server/build/
+server/.gradle/
+server/.kotlin/
+
+# Never a key or a Firebase config, even if one ends up in the folder by mistake.
+**/*.json
