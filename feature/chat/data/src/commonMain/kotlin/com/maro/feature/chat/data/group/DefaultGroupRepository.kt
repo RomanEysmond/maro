@@ -40,6 +40,7 @@ class DefaultGroupRepository(
 
     private fun EmptyResult<DataError.Network>.toGroupResult(): EmptyResult<GroupError> = when (this) {
         is Result.Success -> this
+
         is Result.Error -> Result.Error(
             when (error) {
                 DataError.Network.FORBIDDEN -> GroupError.NOT_ALLOWED

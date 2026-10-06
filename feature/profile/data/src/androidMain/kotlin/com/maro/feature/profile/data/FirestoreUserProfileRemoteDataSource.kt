@@ -16,7 +16,8 @@ import com.maro.core.domain.util.Result
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Firestore documents `users/{uid}` and `usernames/{username}` (-> uid + name: makes usernames unique and is the public card).
+ * Firestore documents `users/{uid}` and `usernames/{username}`
+ * (-> uid + name: makes usernames unique and is the public card).
  * Their shape is enforced by `firestore.rules`.
  */
 internal class FirestoreUserProfileRemoteDataSource(
@@ -98,7 +99,15 @@ internal class FirestoreUserProfileRemoteDataSource(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Result.Error(if (e.toNetworkError() == DataError.Network.NO_INTERNET) ProfileError.NO_INTERNET else ProfileError.UNKNOWN)
+            Result.Error(
+                if (e.toNetworkError() ==
+                    DataError.Network.NO_INTERNET
+                ) {
+                    ProfileError.NO_INTERNET
+                } else {
+                    ProfileError.UNKNOWN
+                },
+            )
         }
     }
 
@@ -121,8 +130,11 @@ internal class FirestoreUserProfileRemoteDataSource(
             FirebaseFirestoreException.Code.UNAVAILABLE,
             FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
             -> DataError.Network.NO_INTERNET
+
             FirebaseFirestoreException.Code.PERMISSION_DENIED -> DataError.Network.FORBIDDEN
+
             FirebaseFirestoreException.Code.UNAUTHENTICATED -> DataError.Network.UNAUTHORIZED
+
             else -> DataError.Network.UNKNOWN
         }
     }

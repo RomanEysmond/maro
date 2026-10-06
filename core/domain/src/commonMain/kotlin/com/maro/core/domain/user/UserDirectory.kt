@@ -4,12 +4,7 @@ import com.maro.core.domain.util.Error
 import com.maro.core.domain.util.Result
 
 /** What anyone may know about a user: their public card (`usernames/{name}`), nothing from the private profile. */
-data class UserCard(
-    val id: String,
-    val firstName: String,
-    val lastName: String,
-    val username: String,
-) {
+data class UserCard(val id: String, val firstName: String, val lastName: String, val username: String) {
     val fullName: String
         get() = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
 

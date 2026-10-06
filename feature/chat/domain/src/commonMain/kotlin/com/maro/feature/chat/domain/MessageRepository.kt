@@ -69,7 +69,8 @@ interface MessageRepository {
 
     /**
      * For the open chat: catches Room up with everything after the last synced message (waiting for the network
-     * if needed), then keeps it current until cancelled. Emits where it is; completes only after [ChatSyncStatus.Failed].
+     * if needed), then keeps it current until cancelled. Emits where it is;
+     * completes only after [ChatSyncStatus.Failed].
      */
     fun syncMessages(chatId: String): Flow<ChatSyncStatus>
 

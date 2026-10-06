@@ -14,9 +14,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ProfileViewModel(
-    private val repository: UserProfileRepository,
-) : ViewModel() {
+class ProfileViewModel(private val repository: UserProfileRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState(profile = repository.profile.value))
     val state = _state.asStateFlow()

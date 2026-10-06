@@ -13,6 +13,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             pluginManager.apply("com.android.application")
             pluginManager.apply("org.jetbrains.kotlin.android")
             pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
+            pluginManager.apply("maro.code.quality")
 
             val catalog = libs
             configureExt<ApplicationExtension> {
@@ -21,6 +22,9 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 defaultConfig {
                     minSdk = catalog.intVersion("minSdk")
                     targetSdk = catalog.intVersion("targetSdk")
+                }
+                lint {
+                    configureMaroLint()
                 }
                 compileOptions {
                     sourceCompatibility = JAVA_VERSION

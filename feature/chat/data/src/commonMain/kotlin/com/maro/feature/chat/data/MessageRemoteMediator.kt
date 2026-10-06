@@ -13,17 +13,17 @@ import com.maro.feature.chat.domain.LoadMessagesException
  * job — [MessageSynchronizer] catches up and listens while the chat is open — so REFRESH and PREPEND do nothing.
  */
 @OptIn(ExperimentalPagingApi::class)
-internal class MessageRemoteMediator(
-    private val chatId: String,
-    private val synchronizer: MessageSynchronizer,
-) : RemoteMediator<Int, MessageWithReceipts>() {
+internal class MessageRemoteMediator(private val chatId: String, private val synchronizer: MessageSynchronizer) :
+    RemoteMediator<Int, MessageWithReceipts>() {
 
     override suspend fun initialize(): InitializeAction = InitializeAction.SKIP_INITIAL_REFRESH
 
     override suspend fun load(loadType: LoadType, state: PagingState<Int, MessageWithReceipts>): MediatorResult =
         when (loadType) {
             LoadType.REFRESH -> MediatorResult.Success(endOfPaginationReached = false)
+
             LoadType.PREPEND -> MediatorResult.Success(endOfPaginationReached = true)
+
             LoadType.APPEND -> when (val result = synchronizer.loadOlder(chatId)) {
                 is Result.Success -> MediatorResult.Success(endOfPaginationReached = result.data)
                 is Result.Error -> MediatorResult.Error(LoadMessagesException(result.error))

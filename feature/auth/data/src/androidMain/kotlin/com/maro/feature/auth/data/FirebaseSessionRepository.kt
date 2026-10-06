@@ -7,9 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Firebase Auth persists the session itself; this only exposes it as a flow. */
-internal class FirebaseSessionRepository(
-    private val auth: FirebaseAuth,
-) : SessionRepository {
+internal class FirebaseSessionRepository(private val auth: FirebaseAuth) : SessionRepository {
 
     private val _isLoggedIn = MutableStateFlow(auth.currentUser != null)
     override val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()

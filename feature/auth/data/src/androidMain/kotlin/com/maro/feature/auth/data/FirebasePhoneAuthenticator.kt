@@ -109,16 +109,20 @@ internal class FirebasePhoneAuthenticator(
 
 private fun Throwable?.toAuthError(): AuthError = when (this) {
     is FirebaseNetworkException -> AuthError.NETWORK
+
     is FirebaseTooManyRequestsException -> AuthError.TOO_MANY_REQUESTS
+
     is FirebaseAuthInvalidCredentialsException -> when (errorCode) {
         "ERROR_INVALID_PHONE_NUMBER" -> AuthError.INVALID_PHONE
         "ERROR_SESSION_EXPIRED" -> AuthError.CODE_EXPIRED
         else -> AuthError.INVALID_CODE
     }
+
     is FirebaseAuthException -> when (errorCode) {
         "ERROR_QUOTA_EXCEEDED" -> AuthError.TOO_MANY_REQUESTS
         "ERROR_SESSION_EXPIRED" -> AuthError.CODE_EXPIRED
         else -> AuthError.UNKNOWN
     }
+
     else -> AuthError.UNKNOWN
 }

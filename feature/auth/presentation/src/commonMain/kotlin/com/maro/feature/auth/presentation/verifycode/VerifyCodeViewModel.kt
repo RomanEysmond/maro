@@ -11,6 +11,7 @@ import com.maro.feature.auth.domain.PhoneAuthenticator
 import com.maro.feature.auth.domain.SendCodeOutcome
 import com.maro.feature.auth.presentation.VerifyCodeRoute
 import com.maro.feature.auth.presentation.util.toUiText
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -106,11 +107,13 @@ class VerifyCodeViewModel(
         viewModelScope.launch {
             when (val result = phoneAuthenticator.resendCode(route.phone)) {
                 is Result.Error -> _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
+
                 is Result.Success -> when (result.data) {
                     SendCodeOutcome.CodeSent -> {
                         _state.update { it.copy(isLoading = false, code = "") }
                         startResendTimer()
                     }
+
                     SendCodeOutcome.AutoVerified -> {
                         isCodeVerified = true
                         completeProfile()
@@ -123,6 +126,7 @@ class VerifyCodeViewModel(
     private suspend fun completeProfile() {
         when (val result = userProfileRepository.ensureProfile(route.firstName, route.lastName, route.phone)) {
             is Result.Error -> _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
+
             // isLoading stays true: the screen is about to be replaced.
             is Result.Success -> _events.send(VerifyCodeEvent.Authenticated(result.data.isNew))
         }
@@ -133,7 +137,7 @@ class VerifyCodeViewModel(
         resendTimerJob = viewModelScope.launch {
             for (secondsLeft in VerifyCodeState.RESEND_DELAY_SECONDS downTo 0) {
                 _state.update { it.copy(resendSecondsLeft = secondsLeft) }
-                if (secondsLeft > 0) delay(1_000)
+                if (secondsLeft > 0) delay(1.seconds)
             }
         }
     }

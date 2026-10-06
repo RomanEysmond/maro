@@ -30,11 +30,7 @@ data class RemoteMessage(
         get() = MessageCursor(createdAtMicros, id)
 }
 
-data class RemoteSystemEvent(
-    val kind: String,
-    val targets: List<String> = emptyList(),
-    val title: String? = null,
-)
+data class RemoteSystemEvent(val kind: String, val targets: List<String> = emptyList(), val title: String? = null)
 
 /**
  * Every read goes to the server (never a local cache), so a failure is reported as one instead of looking like
@@ -51,10 +47,18 @@ interface MessageRemoteDataSource {
     suspend fun fetchLatest(chatId: String, limit: Int): Result<List<RemoteMessage>, DataError.Network>
 
     /** Up to [limit] messages right after [after] (from the very first one when `null`), oldest first. */
-    suspend fun fetchNewer(chatId: String, after: MessageCursor?, limit: Int): Result<List<RemoteMessage>, DataError.Network>
+    suspend fun fetchNewer(
+        chatId: String,
+        after: MessageCursor?,
+        limit: Int,
+    ): Result<List<RemoteMessage>, DataError.Network>
 
     /** Up to [limit] messages right before [before], newest first. */
-    suspend fun fetchOlder(chatId: String, before: MessageCursor, limit: Int): Result<List<RemoteMessage>, DataError.Network>
+    suspend fun fetchOlder(
+        chatId: String,
+        before: MessageCursor,
+        limit: Int,
+    ): Result<List<RemoteMessage>, DataError.Network>
 
     /**
      * Live: every message after [after] (all of them when `null`), oldest first. Each emission is the full

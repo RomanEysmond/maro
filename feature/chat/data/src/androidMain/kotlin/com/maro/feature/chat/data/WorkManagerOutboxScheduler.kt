@@ -10,9 +10,7 @@ import androidx.work.WorkManager
 import com.maro.feature.chat.domain.OutboxScheduler
 import java.util.concurrent.TimeUnit
 
-internal class WorkManagerOutboxScheduler(
-    private val context: Context,
-) : OutboxScheduler {
+internal class WorkManagerOutboxScheduler(private val context: Context) : OutboxScheduler {
 
     override fun schedule() {
         val request = OneTimeWorkRequestBuilder<OutboxWorker>()

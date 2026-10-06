@@ -14,9 +14,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ChatListViewModel(
-    private val repository: ChatRepository,
-) : ViewModel() {
+class ChatListViewModel(private val repository: ChatRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatListState())
     val state = _state.asStateFlow()
@@ -39,6 +37,7 @@ class ChatListViewModel(
             is ChatListAction.OnChatClick -> {
                 viewModelScope.launch { _events.send(ChatListEvent.NavigateToChat(action.chatId)) }
             }
+
             ChatListAction.OnRetryClick -> sync()
         }
     }

@@ -12,10 +12,7 @@ import org.jetbrains.compose.resources.stringResource
 sealed interface UiText {
     data class DynamicString(val value: String) : UiText
 
-    class Resource(
-        val resource: StringResource,
-        val args: Array<Any> = emptyArray(),
-    ) : UiText
+    class Resource(val resource: StringResource, val args: Array<Any> = emptyArray()) : UiText
 
     @Composable
     fun asString(): String = when (this) {

@@ -138,8 +138,7 @@ internal fun ChatEntity.toHeader(members: List<ChatMember>, currentUserId: Strin
 }
 
 /** The first letters of the first two words: "Иван Иванов" -> "ИИ", "Поход в горы" -> "ПВ". */
-private fun initialsOf(words: List<String>): String =
-    words.filter { it.isNotBlank() }.take(2)
-        .mapNotNull { it.trim().firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .ifEmpty { "?" }
+private fun initialsOf(words: List<String>): String = words.filter { it.isNotBlank() }.take(2)
+    .mapNotNull { it.trim().firstOrNull()?.uppercaseChar() }
+    .joinToString("")
+    .ifEmpty { "?" }

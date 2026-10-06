@@ -17,10 +17,7 @@ data class ChatRoute(val chatId: String)
 data class GroupInfoRoute(val chatId: String)
 
 /** Navigation graph of the conversation and its group screen. Opened from :app via a callback from the chat list. */
-fun NavGraphBuilder.chatGraph(
-    navController: NavController,
-    onNavigateBack: () -> Unit,
-) {
+fun NavGraphBuilder.chatGraph(navController: NavController, onNavigateBack: () -> Unit) {
     composable<ChatRoute> { backStackEntry ->
         val route: ChatRoute = backStackEntry.toRoute()
         ChatRoot(

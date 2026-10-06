@@ -81,7 +81,8 @@ fun NavigationRoot(
     // The session is known synchronously, so the start destination is chosen once and there is no splash screen.
     val startDestination = remember { if (mainViewModel.isLoggedIn.value) ChatListGraphRoute else AuthGraphRoute }
 
-    // Signing out (from any screen, or the session ending) sends the user back to the login flow with a clean back stack.
+    // Signing out (from any screen, or the session ending) sends the user back to the login flow
+    // with a clean back stack.
     // Signing in is handled by `onAuthenticated`: the profile has to be saved before the chat list opens.
     LaunchedEffect(isLoggedIn) {
         val inAuthFlow = navController.currentBackStackEntry?.destination
@@ -131,11 +132,7 @@ fun NavigationRoot(
 
 /** "Log out?", plus how many messages would be lost when some have not reached the server. */
 @Composable
-private fun LogoutDialog(
-    confirmation: LogoutConfirmation,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
+private fun LogoutDialog(confirmation: LogoutConfirmation, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.logout_title)) },

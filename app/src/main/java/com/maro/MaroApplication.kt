@@ -1,9 +1,9 @@
 package com.maro
 
 import android.app.Application
-import com.maro.di.appModule
 import com.maro.core.data.di.firebaseCoreModule
 import com.maro.core.database.di.databaseModule
+import com.maro.di.appModule
 import com.maro.feature.auth.data.di.authDataModule
 import com.maro.feature.auth.presentation.di.authPresentationModule
 import com.maro.feature.chat.data.di.chatDataModule

@@ -16,11 +16,7 @@ import androidx.compose.ui.unit.sp
 
 /** Round avatar placeholder with one or two letters. Profile photos come with the media stage. */
 @Composable
-fun InitialsAvatar(
-    initials: String,
-    modifier: Modifier = Modifier,
-    size: Dp = 64.dp,
-) {
+fun InitialsAvatar(initials: String, modifier: Modifier = Modifier, size: Dp = 64.dp) {
     Box(
         modifier = modifier
             .size(size)

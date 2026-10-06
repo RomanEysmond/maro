@@ -110,11 +110,7 @@ fun ChatListRoot(
     )
 }
 
-private data class DrawerMenuItem(
-    val icon: ImageVector,
-    val title: StringResource,
-    val onClick: () -> Unit,
-)
+private data class DrawerMenuItem(val icon: ImageVector, val title: StringResource, val onClick: () -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,11 +176,7 @@ fun ChatListScreen(
 }
 
 @Composable
-private fun ChatListContent(
-    state: ChatListState,
-    onAction: (ChatListAction) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun ChatListContent(state: ChatListState, onAction: (ChatListAction) -> Unit, modifier: Modifier = Modifier) {
     when {
         state.error != null -> ChatListMessage(
             icon = Icons.AutoMirrored.Filled.Chat,
@@ -217,10 +209,7 @@ private fun ChatListContent(
 }
 
 @Composable
-private fun ChatListItem(
-    chat: Chat,
-    onClick: () -> Unit,
-) {
+private fun ChatListItem(chat: Chat, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -250,20 +239,22 @@ private fun ChatListItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-            } else Row(verticalAlignment = Alignment.CenterVertically) {
-                chat.lastMessage?.receipt?.let { receipt ->
-                    ReceiptIcon(receipt)
-                    Spacer(modifier = Modifier.width(4.dp))
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    chat.lastMessage?.receipt?.let { receipt ->
+                        ReceiptIcon(receipt)
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = chat.lastMessage?.let { message ->
+                            message.senderName?.let { "$it: ${message.text}" } ?: message.text
+                        } ?: stringResource(Res.string.chat_list_no_messages_yet),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Text(
-                    text = chat.lastMessage?.let { message ->
-                        message.senderName?.let { "$it: ${message.text}" } ?: message.text
-                    } ?: stringResource(Res.string.chat_list_no_messages_yet),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         }
 
@@ -280,7 +271,15 @@ private fun ChatListItem(
             if (chat.unreadCount > 0) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Badge(containerColor = MaterialTheme.colorScheme.primary) {
-                    Text(text = if (chat.unreadCount > MAX_UNREAD_SHOWN) "$MAX_UNREAD_SHOWN+" else chat.unreadCount.toString())
+                    Text(
+                        text = if (chat.unreadCount >
+                            MAX_UNREAD_SHOWN
+                        ) {
+                            "$MAX_UNREAD_SHOWN+"
+                        } else {
+                            chat.unreadCount.toString()
+                        },
+                    )
                 }
             }
         }
@@ -347,10 +346,7 @@ private fun ChatListMessage(
 }
 
 @Composable
-private fun DrawerContent(
-    items: List<DrawerMenuItem>,
-    onItemClick: (DrawerMenuItem) -> Unit,
-) {
+private fun DrawerContent(items: List<DrawerMenuItem>, onItemClick: (DrawerMenuItem) -> Unit) {
     ModalDrawerSheet {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(

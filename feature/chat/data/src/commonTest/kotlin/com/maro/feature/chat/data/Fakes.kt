@@ -102,7 +102,6 @@ class FakeChatDao : ChatDao {
         drafts.value = drafts.value.filterKeys { it in chats }
     }
     val chats = MutableStateFlow<List<ChatEntity>>(emptyList())
-    private val CHATS get() = chats
     private val messagesForUnread = MutableStateFlow<List<MessageEntity>>(emptyList())
 
     val members = MutableStateFlow<List<ChatMemberEntity>>(emptyList())
@@ -110,7 +109,9 @@ class FakeChatDao : ChatDao {
     override fun observeMembers(chatId: String): Flow<List<ChatMemberEntity>> =
         members.map { list -> list.filter { it.chatId == chatId } }
 
-    override suspend fun getMembers(chatId: String): List<ChatMemberEntity> = members.value.filter { it.chatId == chatId }
+    override suspend fun getMembers(chatId: String): List<ChatMemberEntity> = members.value.filter {
+        it.chatId == chatId
+    }
 
     override suspend fun upsertMembers(members: List<ChatMemberEntity>) {
         val byKey = this.members.value.associateBy { it.chatId to it.userId }.toMutableMap()
@@ -123,7 +124,7 @@ class FakeChatDao : ChatDao {
     }
 
     override fun observeAllWithUnread(userId: String): Flow<List<ChatWithUnread>> =
-        combine(CHATS, messagesForUnread) { chats, messages ->
+        combine(this.chats, messagesForUnread) { chats, messages ->
             chats.map { chat ->
                 ChatWithUnread(
                     chat = chat,
@@ -134,10 +135,10 @@ class FakeChatDao : ChatDao {
             }
         }
 
-    override suspend fun getAll(): List<ChatEntity> = CHATS.value
+    override suspend fun getAll(): List<ChatEntity> = this.chats.value
 
     override suspend fun advanceMyReadAt(id: String, readAt: Long) {
-        CHATS.value = CHATS.value.map { chat ->
+        this.chats.value = this.chats.value.map { chat ->
             if (chat.id == id && (chat.myReadAt ?: Long.MIN_VALUE) < readAt) chat.copy(myReadAt = readAt) else chat
         }
     }

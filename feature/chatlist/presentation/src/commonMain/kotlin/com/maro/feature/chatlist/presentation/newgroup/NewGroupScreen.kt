@@ -75,17 +75,17 @@ fun NewGroupRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewGroupScreen(
-    state: NewGroupState,
-    onAction: (NewGroupAction) -> Unit,
-) {
+fun NewGroupScreen(state: NewGroupState, onAction: (NewGroupAction) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(Res.string.new_group_title)) },
                 navigationIcon = {
                     IconButton(onClick = { onAction(NewGroupAction.OnBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.new_chat_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.new_chat_back),
+                        )
                     }
                 },
             )
@@ -98,7 +98,10 @@ fun NewGroupScreen(
             val title = rememberTextFieldValue(state.title)
             OutlinedTextField(
                 value = title.value,
-                onValueChange = { title.value = it; onAction(NewGroupAction.OnTitleChange(it.text)) },
+                onValueChange = {
+                    title.value = it
+                    onAction(NewGroupAction.OnTitleChange(it.text))
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(Res.string.new_group_title_label)) },
                 singleLine = true,
@@ -106,7 +109,10 @@ fun NewGroupScreen(
             val query = rememberTextFieldValue(state.query)
             OutlinedTextField(
                 value = query.value,
-                onValueChange = { query.value = it; onAction(NewGroupAction.OnQueryChange(it.text)) },
+                onValueChange = {
+                    query.value = it
+                    onAction(NewGroupAction.OnQueryChange(it.text))
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(Res.string.new_group_username)) },
                 prefix = { Text("@") },
@@ -124,7 +130,11 @@ fun NewGroupScreen(
                 },
             )
             state.error?.let { error ->
-                Text(text = error.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = error.asString(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
             if (state.members.isNotEmpty()) {
                 Text(
@@ -154,10 +164,7 @@ fun NewGroupScreen(
 }
 
 @Composable
-private fun MemberRow(
-    member: FoundUser,
-    onRemoveClick: () -> Unit,
-) {
+private fun MemberRow(member: FoundUser, onRemoveClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

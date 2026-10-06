@@ -13,9 +13,7 @@ import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
 import kotlin.coroutines.cancellation.CancellationException
 
-internal class FirestoreGroupRemoteDataSource(
-    private val firestore: FirebaseFirestore,
-) : GroupRemoteDataSource {
+internal class FirestoreGroupRemoteDataSource(private val firestore: FirebaseFirestore) : GroupRemoteDataSource {
 
     /** Thrown inside a transaction to end it with a typed error instead of a write. */
     private class Refused(val error: DataError.Network) : Exception()
@@ -43,13 +41,16 @@ internal class FirestoreGroupRemoteDataSource(
 
         transaction.update(
             chatRef,
-            FieldPath.of("participants"), FieldValue.arrayUnion(member.id),
-            FieldPath.of("participantInfo", member.id), buildMap {
+            FieldPath.of("participants"),
+            FieldValue.arrayUnion(member.id),
+            FieldPath.of("participantInfo", member.id),
+            buildMap {
                 put("firstName", member.firstName)
                 put("lastName", member.lastName)
                 member.username?.let { put("username", it) }
             },
-            FieldPath.of("updatedAt"), FieldValue.serverTimestamp(),
+            FieldPath.of("updatedAt"),
+            FieldValue.serverTimestamp(),
         )
         transaction.setSystemMessage(chatRef, systemMessageId, actorId, kind = "added", targets = listOf(member.id))
     }
@@ -122,8 +123,11 @@ internal class FirestoreGroupRemoteDataSource(
             FirebaseFirestoreException.Code.UNAVAILABLE,
             FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
             -> DataError.Network.NO_INTERNET
+
             FirebaseFirestoreException.Code.PERMISSION_DENIED -> DataError.Network.FORBIDDEN
+
             FirebaseFirestoreException.Code.NOT_FOUND -> DataError.Network.NOT_FOUND
+
             else -> DataError.Network.UNKNOWN
         }
     }

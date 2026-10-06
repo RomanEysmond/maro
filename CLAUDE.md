@@ -305,11 +305,31 @@ server/                   мини-сервер пушей (Ktor + Firebase Admi
   Не проверено на устройстве: восстановление формы новой группы и редактирования профиля (юнит-тесты), отмена outbox при
   выходе с сообщением в очереди (сообщение отправилось раньше).
 
+- **Этап 7г** (ветка `stage-7d-lint`, не закоммичен; сборка, 182 юнит-теста, `ktlintCheck`, `detekt`, `lintDebug` — всё
+  зелёное; приложение после переформатирования проверено на эмуляторе). Новые зависимости — только инструменты сборки
+  (в APK не попадают): Gradle-плагин `org.jlleitschuh.gradle.ktlint` 14.2.0 (ktlint 1.8.0) и detekt 1.23.8.
+  Convention-плагин `maro.code.quality` (применяют `maro.kmp.library` и `maro.android.application`): ktlint на все
+  модули (сгенерированное в `build/` не проверяется), detekt по всему `src/` модуля (все source set'ы KMP). detekt 1.23.8
+  собран на Kotlin 2.0.21 — его собственный classpath прибит к этой версии (`detektKotlin` в каталоге), иначе Gradle подсовывает
+  наш 2.3 и detekt не стартует; detekt 2.0 пока альфа и требует Gradle 9 / AGP 9. Стиль — `.editorconfig`
+  (`ktlint_code_style = android_studio`, 120 символов, trailing commas, Composable-имена с заглавной). Правила detekt —
+  `config/detekt/detekt.yml` поверх умолчаний, каждое отступление с причиной (ReturnCount и SpreadOperator выключены,
+  generic catch разрешён в data-слое — там граница с Firebase/Ktor и `CancellationException` всегда пробрасывается).
+  Android lint (`configureMaroLint` в `Extensions.kt`): ошибки валят сборку; проверки версий библиотек/AGP/targetSdk и
+  монохромной иконки отключены (обновление тулчейна — отдельный этап; монохромного логотипа нет). Весь код один раз
+  прогнан через `ktlintFormat`, остальное исправлено руками: wildcard-импорты, HTTP-коды пушей — именованные константы,
+  `formatPhone` через регулярку, `ACCESS_NETWORK_STATE` объявлен в манифесте `:core:data` (модуль сам им пользуется),
+  `roundIcon` указывает на круглую иконку, удалены неиспользуемые ресурсы шаблона, `mipmap-anydpi-v26` → `mipmap-anydpi`.
+  **iOS:** ktlint для iOS-исходников запускает KSP Room, и это вскрыло настоящую ошибку iOS-кода — `Dispatchers.IO` в
+  общем коде без `import kotlinx.coroutines.IO` (на Kotlin/Native это расширение). Исправлено; `compileKotlinIosArm64`
+  собирается на Windows для всех модулей (klib без линковки — запуск на iOS по-прежнему требует Mac).
+
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
 lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0,
-Room 3.0.2 (`androidx.room3`, + `room3-paging`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2,
+Room 3.0.2 (`androidx.room3`, + `room3-paging`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2, ktlint 1.8.0 (плагин `org.jlleitschuh.gradle.ktlint` 14.2.0),
+detekt 1.23.8,
 Paging 3.5.1 (`paging-common`/`paging-compose` — KMP; `paging-compose` 3.5 требует Compose 1.9), Ktor 3.6.0 (клиент с
 движком Android; сервер — Netty), `firebase-admin` 9.11.0, logback 1.6.4 (только сервер), `kotlinx-datetime` 0.8.0.
 Convention plugins в `build-logic` — обычные Kotlin-классы (не `kotlin-dsl`): встроенный Kotlin Gradle 8.x не читает метаданные
@@ -317,8 +337,9 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 
 Сборка и проверка:
 ```bash
-./gradlew assembleDebug testDebugUnitTest
+./gradlew assembleDebug testDebugUnitTest ktlintCheck detekt lintDebug
 ```
+Автоформат: `./gradlew ktlintFormat`. Компиляция общего кода под iOS (без Mac, только klib): `./gradlew compileKotlinIosArm64`.
 На Windows с кириллицей в имени профиля тестовый воркер Gradle не стартует — нужен ASCII-путь для Gradle user home
 (переменная `GRADLE_USER_HOME` или поле «Gradle user home» в настройках IDE).
 
@@ -339,7 +360,7 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
    7б. ✅ Release: R8, подпись из `local.properties` (ключ вне репозитория), `docs/RELEASE.md`.
    7в. ✅ Выход с подтверждением и очисткой Room/outbox/уведомлений, uid при смене аккаунта, черновики чатов в Room,
        формы переживают смерть процесса. `SecureStorage` отложен до E2E.
-   7г. ktlint/detekt, lint для KMP-модулей.
+   7г. ✅ ktlint + detekt + Android lint во всех модулях, весь код приведён к ним.
    SQLCipher отложен (до E2E): Room 3 работает через KMP-драйверы, SQLCipher — через `SupportSQLiteOpenHelper`.
 8. Медиа (последним; хранилище выбираем к тому времени — Firebase Storage требует Blaze).
 
@@ -359,12 +380,13 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
   не проверялось — создавать чат пока негде (это этап 4); можно добавить документ в `chats/` вручную в консоли (форму
   смотреть в `firestore.rules`) для визуальной проверки, но это не обязательно. Занятое @username (нужен второй
   пользователь) и отказ правил на чужих документах — тоже не проверялись на реальном Firestore, только юнит-тестами.
-  `MaroDatabase`/`ChatDao` в `:core:database` не собирались и не запускались на iOS (нет Mac) — код написан по
-  официальному образцу Room KMP, но не проверен.
+  Общий код (в т.ч. `MaroDatabase`/DAO с KSP Room) компилируется под `iosArm64` (с этапа 7г), но не линковался и не
+  запускался на iOS (нет Mac).
 - Этап 2: для SMS на +7 в консоли Firebase (Authentication → Settings → SMS region policy) должна быть разрешена Россия, иначе ошибка 17006 «SMS unable to be sent until this region enabled». Если после верного SMS-кода не удалось сохранить профиль и приложение убито, при следующем запуске пользователь уже «залогинен» без `users/{uid}` (профиль нигде пока не читается). Автоподстановка SMS, пришедшего после `onCodeSent`, игнорируется — код вводится вручную.
 - `com.android.library` + Kotlin Multiplatform помечен устаревшим (несовместим с AGP 9) — позже перейти на
   `com.android.kotlin.multiplatform.library`.
-- ktlint/detekt не настроены (detekt может не поддерживать Kotlin 2.3); `lintDebug` для KMP-модулей не гонялся.
+- detekt 1.23.8 анализирует без типов (его компилятор — Kotlin 2.0.21); перейти на detekt 2.0 вместе с переходом на AGP 9 /
+  Gradle 9. CI (GitHub Actions) не настроен — проверки запускаются локально.
 - Ограничение Firebase API-ключа в Google Cloud Console не настроено (необязательно; ключ не секрет, защиту дают Security Rules).
 - Отсутствуют: iOS-приложение, DataStore.
 - Пуши: сервер пока только на машине разработчика — release-сборка без пушей, пока в `local.properties` нет

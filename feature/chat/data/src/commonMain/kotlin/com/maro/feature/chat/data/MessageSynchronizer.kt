@@ -12,15 +12,15 @@ import com.maro.feature.chat.domain.ChatSyncStatus
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.channels.ProducerScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -57,18 +57,19 @@ internal class MessageSynchronizer(
      * Fetches everything after the newest synced message, page by page. A chat that was never synced gets its
      * latest page only; the history before it is loaded when the user scrolls ([loadOlder]).
      */
-    suspend fun catchUp(chatId: String): EmptyResult<DataError.Network> =
-        withChatLock(chatId) { catchUpLocked(chatId) }
-            .also { if (it is Result.Success) deliveryReporter.messagesArrived(chatId) }
+    suspend fun catchUp(chatId: String): EmptyResult<DataError.Network> = withChatLock(chatId) { catchUpLocked(chatId) }
+        .also { if (it is Result.Success) deliveryReporter.messagesArrived(chatId) }
 
     /** One page of history before the oldest synced message; `true` once the start of the chat is reached. */
-    suspend fun loadOlder(chatId: String): Result<Boolean, DataError.Network> = withChatLock(chatId) { loadOlderLocked(chatId) }
+    suspend fun loadOlder(chatId: String): Result<Boolean, DataError.Network> =
+        withChatLock(chatId) { loadOlderLocked(chatId) }
 
     private suspend fun catchUpLocked(chatId: String): EmptyResult<DataError.Network> {
         val state = messageDao.getSyncState(chatId)
         if (state == null) {
             return when (val result = remote.fetchLatest(chatId, PAGE_SIZE)) {
                 is Result.Error -> Result.Error(result.error)
+
                 is Result.Success -> {
                     save(chatId, result.data, reachedStart = result.data.size < PAGE_SIZE)
                     Result.Success(Unit)
@@ -149,6 +150,7 @@ internal class MessageSynchronizer(
                         deliveryReporter.messagesArrived(chatId)
                         true
                     }
+
                     is Result.Error -> {
                         failure = update.error
                         false

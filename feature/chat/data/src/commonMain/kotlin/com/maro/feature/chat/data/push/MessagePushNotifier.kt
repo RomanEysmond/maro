@@ -47,15 +47,7 @@ class KtorMessagePushNotifier(
                 val fresh = idTokens.idToken(forceRefresh = true) ?: return Result.Error(DataError.Network.UNAUTHORIZED)
                 status = post(fresh, chatId, messageId)
             }
-            when (status) {
-                in 200..299 -> Result.Success(Unit)
-                400 -> Result.Error(DataError.Network.BAD_REQUEST)
-                401 -> Result.Error(DataError.Network.UNAUTHORIZED)
-                403 -> Result.Error(DataError.Network.FORBIDDEN)
-                404 -> Result.Error(DataError.Network.NOT_FOUND)
-                in 500..599 -> Result.Error(DataError.Network.SERVER_ERROR)
-                else -> Result.Error(DataError.Network.UNKNOWN)
-            }
+            status.toResult()
         } catch (e: CancellationException) {
             throw e
         } catch (e: HttpRequestTimeoutException) {
@@ -74,7 +66,23 @@ class KtorMessagePushNotifier(
             setBody(NotifyRequestDto(chatId, messageId))
         }.status.value
 
+    private fun Int.toResult(): EmptyResult<DataError.Network> = when (this) {
+        in SUCCESS -> Result.Success(Unit)
+        BAD_REQUEST -> Result.Error(DataError.Network.BAD_REQUEST)
+        UNAUTHORIZED -> Result.Error(DataError.Network.UNAUTHORIZED)
+        FORBIDDEN -> Result.Error(DataError.Network.FORBIDDEN)
+        NOT_FOUND -> Result.Error(DataError.Network.NOT_FOUND)
+        in SERVER_ERRORS -> Result.Error(DataError.Network.SERVER_ERROR)
+        else -> Result.Error(DataError.Network.UNKNOWN)
+    }
+
+    /** The HTTP statuses `/v1/notify` answers with (see server/README.md). */
     private companion object {
+        val SUCCESS = 200..299
+        const val BAD_REQUEST = 400
         const val UNAUTHORIZED = 401
+        const val FORBIDDEN = 403
+        const val NOT_FOUND = 404
+        val SERVER_ERRORS = 500..599
     }
 }

@@ -75,15 +75,14 @@ class DefaultMessageRepository(
     )
 
     @OptIn(ExperimentalPagingApi::class)
-    override fun messages(chatId: String): Flow<PagingData<Message>> =
-        Pager(
-            config = PagingConfig(pageSize = MessageSynchronizer.PAGE_SIZE, enablePlaceholders = false),
-            remoteMediator = MessageRemoteMediator(chatId, synchronizer),
-            pagingSourceFactory = { messageDao.pagingSource(chatId) },
-        ).flow.map { page ->
-            val userId = currentUser.userId
-            page.map { it.toDomain(userId) }
-        }
+    override fun messages(chatId: String): Flow<PagingData<Message>> = Pager(
+        config = PagingConfig(pageSize = MessageSynchronizer.PAGE_SIZE, enablePlaceholders = false),
+        remoteMediator = MessageRemoteMediator(chatId, synchronizer),
+        pagingSourceFactory = { messageDao.pagingSource(chatId) },
+    ).flow.map { page ->
+        val userId = currentUser.userId
+        page.map { it.toDomain(userId) }
+    }
 
     override fun chatHeader(chatId: String): Flow<ChatHeader?> =
         combine(chatDao.observeById(chatId), chatDao.observeMembers(chatId)) { chat, members ->
@@ -175,14 +174,18 @@ class DefaultMessageRepository(
                     // Fire and forget: the message is delivered either way, the push only makes it arrive sooner.
                     scope.launch { pushNotifier.messageSent(message.chatId, message.id) }
                 }
+
                 is Result.Error -> when {
                     result.error.isPermanent() -> messageDao.updateStatus(message.id, MessageStatus.FAILED.name)
+
                     // No network is not the message's fault: keep waiting, however long it takes.
                     result.error.isConnectivity() -> return@withLock OutboxResult.RETRY
+
                     attempt >= MAX_ATTEMPTS -> {
                         messageDao.updateStatusFor(MessageStatus.SENDING.name, MessageStatus.FAILED.name)
                         return@withLock OutboxResult.DONE
                     }
+
                     else -> return@withLock OutboxResult.RETRY
                 }
             }
@@ -205,6 +208,7 @@ class DefaultMessageRepository(
         DataError.Network.PAYLOAD_TOO_LARGE,
         DataError.Network.SERIALIZATION,
         -> true
+
         else -> false
     }
 

@@ -28,10 +28,7 @@ private val LocalMaroColors = staticCompositionLocalOf { LightMaroColors }
 
 /** App-wide Material 3 theme. Brand colors and typography will be customised here later. */
 @Composable
-fun MaroTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit,
-) {
+fun MaroTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalMaroColors provides if (darkTheme) DarkMaroColors else LightMaroColors) {
         MaterialTheme(
             colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme(),

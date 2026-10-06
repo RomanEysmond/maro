@@ -28,8 +28,7 @@ class FakeChatDao : ChatDao {
     override suspend fun deleteDraftsExcept(chats: List<String>) {
         drafts.value = drafts.value.filterKeys { it in chats }
     }
-    private val _chats = MutableStateFlow<List<ChatEntity>>(emptyList())
-    private val CHATS get() = _chats
+    private val stored = MutableStateFlow<List<ChatEntity>>(emptyList())
 
     /** Messages the unread counter is computed from (Room counts the `messages` table). */
     val messagesForUnread = MutableStateFlow<List<MessageEntity>>(emptyList())
@@ -39,7 +38,9 @@ class FakeChatDao : ChatDao {
     override fun observeMembers(chatId: String): Flow<List<ChatMemberEntity>> =
         members.map { list -> list.filter { it.chatId == chatId } }
 
-    override suspend fun getMembers(chatId: String): List<ChatMemberEntity> = members.value.filter { it.chatId == chatId }
+    override suspend fun getMembers(chatId: String): List<ChatMemberEntity> = members.value.filter {
+        it.chatId == chatId
+    }
 
     override suspend fun upsertMembers(members: List<ChatMemberEntity>) {
         val byKey = this.members.value.associateBy { it.chatId to it.userId }.toMutableMap()
@@ -52,7 +53,7 @@ class FakeChatDao : ChatDao {
     }
 
     override fun observeAllWithUnread(userId: String): Flow<List<ChatWithUnread>> =
-        combine(CHATS, messagesForUnread, drafts) { chats, messages, drafts ->
+        combine(stored, messagesForUnread, drafts) { chats, messages, drafts ->
             chats.map { chat ->
                 ChatWithUnread(
                     chat = chat,
@@ -64,25 +65,25 @@ class FakeChatDao : ChatDao {
             }
         }
 
-    override suspend fun getAll(): List<ChatEntity> = CHATS.value
+    override suspend fun getAll(): List<ChatEntity> = stored.value
 
     override suspend fun advanceMyReadAt(id: String, readAt: Long) {
-        CHATS.value = CHATS.value.map { chat ->
+        stored.value = stored.value.map { chat ->
             if (chat.id == id && (chat.myReadAt ?: Long.MIN_VALUE) < readAt) chat.copy(myReadAt = readAt) else chat
         }
     }
 
-    override fun observeAll(): Flow<List<ChatEntity>> = _chats
+    override fun observeAll(): Flow<List<ChatEntity>> = stored
 
-    override fun observeById(id: String): Flow<ChatEntity?> = _chats.map { list -> list.firstOrNull { it.id == id } }
+    override fun observeById(id: String): Flow<ChatEntity?> = stored.map { list -> list.firstOrNull { it.id == id } }
 
     override suspend fun upsertAll(chats: List<ChatEntity>) {
-        val byId = _chats.value.associateBy { it.id }.toMutableMap()
+        val byId = stored.value.associateBy { it.id }.toMutableMap()
         chats.forEach { byId[it.id] = it }
-        _chats.value = byId.values.sortedByDescending { it.updatedAt }
+        stored.value = byId.values.sortedByDescending { it.updatedAt }
     }
 
     override suspend fun deleteExcept(chats: List<String>) {
-        _chats.value = _chats.value.filter { it.id in chats }
+        stored.value = stored.value.filter { it.id in chats }
     }
 }

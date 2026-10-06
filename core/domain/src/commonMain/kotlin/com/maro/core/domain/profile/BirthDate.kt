@@ -1,3 +1,6 @@
+// Calendar arithmetic (days from the civil date and back, H. Hinnant's algorithm): its numbers are the formula.
+@file:Suppress("MagicNumber")
+
 package com.maro.core.domain.profile
 
 /** A calendar date without time zone. Kept as plain numbers to avoid a date-time dependency. */

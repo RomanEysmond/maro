@@ -36,7 +36,15 @@ class GroupMappersTest {
     private fun chat(type: String, createdBy: String? = null) = ChatEntity(
         id = "c", type = type, otherUserId = if (type == "direct") "anna" else "", otherUserFirstName = "Анна",
         otherUserLastName = "Петрова", otherUserUsername = null, lastMessageText = null, lastMessageSenderId = null,
-        lastMessageAt = null, updatedAt = 0L, title = if (type == "group") "Поход в горы" else null, createdBy = createdBy,
+        lastMessageAt = null, updatedAt = 0L,
+        title = if (type ==
+            "group"
+        ) {
+            "Поход в горы"
+        } else {
+            null
+        },
+        createdBy = createdBy,
     )
 
     private val members = listOf(ChatMember("me", "Иван", "", null), ChatMember("anna", "Анна", "", null))

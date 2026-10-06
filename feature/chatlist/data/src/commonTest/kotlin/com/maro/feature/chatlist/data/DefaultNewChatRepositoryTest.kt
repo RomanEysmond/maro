@@ -61,13 +61,17 @@ class DefaultNewChatRepositoryTest {
         }
     }
 
-    private class FakeProfiles(initial: UserProfile?, private val loadable: UserProfile? = null) : UserProfileRepository {
+    private class FakeProfiles(initial: UserProfile?, private val loadable: UserProfile? = null) :
+        UserProfileRepository {
         private val _profile = MutableStateFlow(initial)
         override val profile: StateFlow<UserProfile?> = _profile
         var refreshCalls = 0
 
-        override suspend fun ensureProfile(firstName: String, lastName: String, phone: String):
-            Result<EnsuredProfile, DataError.Network> = Result.Error(DataError.Network.UNKNOWN)
+        override suspend fun ensureProfile(
+            firstName: String,
+            lastName: String,
+            phone: String,
+        ): Result<EnsuredProfile, DataError.Network> = Result.Error(DataError.Network.UNKNOWN)
 
         override suspend fun refreshProfile(): EmptyResult<DataError.Network> {
             refreshCalls++
@@ -163,11 +167,17 @@ class DefaultNewChatRepositoryTest {
 
     @Test
     fun `a group needs a title and someone besides the creator`() = runTest {
-        assertThat(repository().createGroup("   ", listOf(anna))).isEqualTo(Result.Error(NewChatError.INVALID_GROUP_TITLE))
-        assertThat(repository().createGroup("Поход", emptyList())).isEqualTo(Result.Error(NewChatError.NO_GROUP_MEMBERS))
+        assertThat(
+            repository().createGroup("   ", listOf(anna)),
+        ).isEqualTo(Result.Error(NewChatError.INVALID_GROUP_TITLE))
+        assertThat(
+            repository().createGroup("Поход", emptyList()),
+        ).isEqualTo(Result.Error(NewChatError.NO_GROUP_MEMBERS))
         // The creator in the list does not count as a member.
         val self = FoundUser("uid-m", "Иван", "Иванов", "ivan_i")
-        assertThat(repository().createGroup("Поход", listOf(self))).isEqualTo(Result.Error(NewChatError.NO_GROUP_MEMBERS))
+        assertThat(
+            repository().createGroup("Поход", listOf(self)),
+        ).isEqualTo(Result.Error(NewChatError.NO_GROUP_MEMBERS))
         assertThat(remote.group).isNull()
     }
 

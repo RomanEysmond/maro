@@ -76,10 +76,7 @@ fun NewChatRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewChatScreen(
-    state: NewChatState,
-    onAction: (NewChatAction) -> Unit,
-) {
+fun NewChatScreen(state: NewChatState, onAction: (NewChatAction) -> Unit) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
@@ -119,7 +116,10 @@ fun NewChatScreen(
             val query = rememberTextFieldValue(state.query)
             OutlinedTextField(
                 value = query.value,
-                onValueChange = { query.value = it; onAction(NewChatAction.OnQueryChange(it.text)) },
+                onValueChange = {
+                    query.value = it
+                    onAction(NewChatAction.OnQueryChange(it.text))
+                },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 label = { Text(stringResource(Res.string.new_chat_username)) },
                 prefix = { Text("@") },
@@ -158,11 +158,7 @@ fun NewChatScreen(
 }
 
 @Composable
-private fun UserRow(
-    user: FoundUser,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
+private fun UserRow(user: FoundUser, enabled: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

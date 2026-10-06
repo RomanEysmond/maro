@@ -77,17 +77,17 @@ fun RegistrationRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegistrationScreen(
-    state: RegistrationState,
-    onAction: (RegistrationAction) -> Unit,
-) {
+fun RegistrationScreen(state: RegistrationState, onAction: (RegistrationAction) -> Unit) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(Res.string.registration_title)) },
                 navigationIcon = {
                     IconButton(onClick = { onAction(RegistrationAction.OnBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.registration_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.registration_back),
+                        )
                     }
                 },
             )
@@ -137,7 +137,10 @@ fun RegistrationScreen(
                 val firstName = rememberTextFieldValue(state.firstName)
                 OutlinedTextField(
                     value = firstName.value,
-                    onValueChange = { firstName.value = it; onAction(RegistrationAction.OnFirstNameChange(it.text)) },
+                    onValueChange = {
+                        firstName.value = it
+                        onAction(RegistrationAction.OnFirstNameChange(it.text))
+                    },
                     label = { Text(stringResource(Res.string.registration_first_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -151,7 +154,10 @@ fun RegistrationScreen(
                 val lastName = rememberTextFieldValue(state.lastName)
                 OutlinedTextField(
                     value = lastName.value,
-                    onValueChange = { lastName.value = it; onAction(RegistrationAction.OnLastNameChange(it.text)) },
+                    onValueChange = {
+                        lastName.value = it
+                        onAction(RegistrationAction.OnLastNameChange(it.text))
+                    },
                     label = { Text(stringResource(Res.string.registration_last_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -165,7 +171,10 @@ fun RegistrationScreen(
                 val phoneNumber = rememberTextFieldValue(state.phoneNumber)
                 OutlinedTextField(
                     value = phoneNumber.value,
-                    onValueChange = { phoneNumber.value = it; onAction(RegistrationAction.OnPhoneNumberChange(it.text)) },
+                    onValueChange = {
+                        phoneNumber.value = it
+                        onAction(RegistrationAction.OnPhoneNumberChange(it.text))
+                    },
                     label = { Text(stringResource(Res.string.registration_phone)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,

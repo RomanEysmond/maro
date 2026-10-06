@@ -48,8 +48,10 @@ class MaroMessagingService : FirebaseMessagingService() {
             val incoming = repository.incomingMessage(chatId, messageId)
             when {
                 incoming != null -> notifications.show(chatId, incoming)
+
                 // Not fetched in time: still say that something arrived.
                 !caughtUp -> notifications.show(chatId, null)
+
                 // Fetched, but not someone else's message (for example the user's own from another device).
                 else -> Unit
             }

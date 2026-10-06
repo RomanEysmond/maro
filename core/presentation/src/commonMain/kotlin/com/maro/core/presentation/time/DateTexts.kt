@@ -45,8 +45,13 @@ private val months = listOf(
 
 // Monday first, as DayOfWeek.ordinal.
 private val weekdaysShort = listOf(
-    Res.string.weekday_short_1, Res.string.weekday_short_2, Res.string.weekday_short_3, Res.string.weekday_short_4,
-    Res.string.weekday_short_5, Res.string.weekday_short_6, Res.string.weekday_short_7,
+    Res.string.weekday_short_1,
+    Res.string.weekday_short_2,
+    Res.string.weekday_short_3,
+    Res.string.weekday_short_4,
+    Res.string.weekday_short_5,
+    Res.string.weekday_short_6,
+    Res.string.weekday_short_7,
 )
 
 @Composable
@@ -57,7 +62,9 @@ private fun today(timeZone: TimeZone): LocalDate = remember(timeZone) { Clock.Sy
 fun dayHeaderText(date: LocalDate, timeZone: TimeZone = TimeZone.currentSystemDefault()): String =
     when (val label = dayLabel(date, today(timeZone))) {
         DayLabel.Today -> stringResource(Res.string.day_today)
+
         DayLabel.Yesterday -> stringResource(Res.string.day_yesterday)
+
         is DayLabel.Date -> {
             val month = stringResource(monthResource(label.month))
             label.year?.let { stringResource(Res.string.date_day_month_year, label.day, month, it) }
@@ -71,7 +78,9 @@ fun chatListTimeText(epochMillis: Long, timeZone: TimeZone = TimeZone.currentSys
     val at = remember(epochMillis, timeZone) { epochMillis.toLocalDateTime(timeZone) }
     return when (val label = shortTimeLabel(at, today(timeZone))) {
         is ShortTimeLabel.Time -> "${label.hour.twoDigits()}:${label.minute.twoDigits()}"
+
         is ShortTimeLabel.Weekday -> stringResource(weekdaysShort[label.dayOfWeek.ordinal])
+
         is ShortTimeLabel.Date -> {
             val day = label.day.twoDigits()
             val month = label.month.twoDigits()

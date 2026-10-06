@@ -45,7 +45,13 @@ fun ChatWithUnread.toDomain(currentUserId: String?): Chat {
     val base = chat.toDomain()
     val lastMessage = base.lastMessage?.let { message ->
         if (message.senderId != currentUserId) {
-            return@let if (base.type == ChatType.GROUP) message.copy(senderName = lastMessageSenderFirstName) else message
+            return@let if (base.type ==
+                ChatType.GROUP
+            ) {
+                message.copy(senderName = lastMessageSenderFirstName)
+            } else {
+                message
+            }
         }
         val receipt = when {
             (chat.peerReadAt ?: Long.MIN_VALUE) >= message.sentAt -> LastMessageReceipt.READ

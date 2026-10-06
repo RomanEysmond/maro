@@ -52,13 +52,17 @@ class DefaultChatRepository(
         // Restarted for every signed-in user, stopped while nobody is: the query is bound to the uid.
         currentUser.userIdFlow
             .flatMapLatest { userId -> if (userId == null) emptyFlow() else remote.observeChats() }
-            .onEach { result -> result.onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() }) } }
+            .onEach { result ->
+                result.onSuccess { chats ->
+                    chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() })
+                }
+            }
             .launchIn(listenerScope)
     }
 
-    override suspend fun sync(): EmptyResult<DataError.Network> {
-        return remote.fetchChats()
-            .onSuccess { chats -> chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() }) }
-            .asEmptyResult()
-    }
+    override suspend fun sync(): EmptyResult<DataError.Network> = remote.fetchChats()
+        .onSuccess { chats ->
+            chatDao.replaceAll(chats.map { it.toEntity() }, chats.flatMap { it.toMemberEntities() })
+        }
+        .asEmptyResult()
 }

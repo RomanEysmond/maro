@@ -36,16 +36,15 @@ class DefaultChatRepositoryTest {
     /** Who is signed in; tests switch it to play sign-out and another account in the same process. */
     private val signedIn = MutableStateFlow<String?>("me")
 
-    private fun repository(dao: FakeChatDao, remote: FakeChatRemoteDataSource) =
-        DefaultChatRepository(
-            chatDao = dao,
-            remote = remote,
-            currentUser = object : CurrentUserProvider {
-                override val userIdFlow = signedIn
-                override val userId: String? get() = signedIn.value
-            },
-            listenerScope = CoroutineScope(UnconfinedTestDispatcher()),
-        )
+    private fun repository(dao: FakeChatDao, remote: FakeChatRemoteDataSource) = DefaultChatRepository(
+        chatDao = dao,
+        remote = remote,
+        currentUser = object : CurrentUserProvider {
+            override val userIdFlow = signedIn
+            override val userId: String? get() = signedIn.value
+        },
+        listenerScope = CoroutineScope(UnconfinedTestDispatcher()),
+    )
 
     @Test
     fun `sync upserts the fetched chats into the local cache`() = runTest {
@@ -110,7 +109,10 @@ class DefaultChatRepositoryTest {
     @Test
     fun `unread counts messages from others after the read mark, and a newer local mark survives a sync`() = runTest {
         val dao = FakeChatDao()
-        val remote = FakeChatRemoteDataSource().apply { fetchResult = Result.Success(listOf(chatA.copy(myReadAt = 1_000L))) }
+        val remote = FakeChatRemoteDataSource().apply {
+            fetchResult =
+                Result.Success(listOf(chatA.copy(myReadAt = 1_000L)))
+        }
         val repository = repository(dao, remote)
         dao.messagesForUnread.value = listOf(
             message("read", "them", 1_000L),

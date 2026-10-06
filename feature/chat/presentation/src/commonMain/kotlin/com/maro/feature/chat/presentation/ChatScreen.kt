@@ -99,11 +99,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun ChatRoot(
-    viewModel: ChatViewModel,
-    onNavigateBack: () -> Unit,
-    onOpenGroupInfo: (chatId: String) -> Unit,
-) {
+fun ChatRoot(viewModel: ChatViewModel, onNavigateBack: () -> Unit, onOpenGroupInfo: (chatId: String) -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items = viewModel.items.collectAsLazyPagingItems()
 
@@ -129,11 +125,7 @@ fun ChatRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(
-    state: ChatState,
-    items: LazyPagingItems<ChatItem>,
-    onAction: (ChatAction) -> Unit,
-) {
+fun ChatScreen(state: ChatState, items: LazyPagingItems<ChatItem>, onAction: (ChatAction) -> Unit) {
     val listState = rememberLazyListState()
     FollowNewestMessage(listState = listState, items = items)
 
@@ -211,7 +203,9 @@ fun ChatScreen(
                                         onRetryClick = { onAction(ChatAction.OnRetryClick(item.message.id)) },
                                     )
                                 }
+
                                 is ChatItem.DaySeparator -> DayHeader(date = item.date)
+
                                 null -> Unit
                             }
                         }
@@ -242,10 +236,7 @@ fun ChatScreen(
  * user was at the bottom: follow to the new one. If they were reading history further up, leave them there.
  */
 @Composable
-private fun FollowNewestMessage(
-    listState: LazyListState,
-    items: LazyPagingItems<ChatItem>,
-) {
+private fun FollowNewestMessage(listState: LazyListState, items: LazyPagingItems<ChatItem>) {
     // Index 0 is always the newest message: a day's heading sits above (after) that day's oldest message.
     val newestId = if (items.itemCount > 0) items.peek(0)?.key else null
     var shownNewestId by remember { mutableStateOf<String?>(null) }
@@ -262,14 +253,20 @@ private fun FollowNewestMessage(
 @Composable
 private fun ChatState.subtitle(): String? = when {
     error != null -> error.asString()
+
     connection == ChatConnection.WAITING_FOR_NETWORK -> stringResource(Res.string.chat_waiting_for_network)
+
     isPeerTyping && header?.isGroup == true -> when (typingNames.size) {
         1 -> stringResource(Res.string.chat_typing_named, typingNames.single())
         else -> stringResource(Res.string.chat_typing_several)
     }
+
     isPeerTyping -> stringResource(Res.string.chat_typing)
+
     connection == ChatConnection.UPDATING -> stringResource(Res.string.chat_updating)
+
     header?.isGroup == true -> pluralStringResource(Res.plurals.chat_members, header.memberCount, header.memberCount)
+
     else -> null
 }
 
@@ -290,12 +287,18 @@ private fun SystemMessage(message: Message, members: List<ChatMember>) {
     val actor = nameOf(message.senderId)
     val text = when (event.kind) {
         SystemEventKind.CREATED -> stringResource(Res.string.chat_event_created, actor, event.title.orEmpty())
+
         SystemEventKind.ADDED ->
             stringResource(Res.string.chat_event_added, actor, event.targetIds.joinToString(", ") { nameOf(it) })
+
         SystemEventKind.LEFT -> stringResource(Res.string.chat_event_left, actor)
+
         SystemEventKind.RENAMED -> stringResource(Res.string.chat_event_renamed, actor, event.title.orEmpty())
     }
-    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
@@ -322,10 +325,7 @@ private fun DayHeader(date: LocalDate) {
 }
 
 @Composable
-private fun EmptyChat(
-    state: ChatState,
-    modifier: Modifier = Modifier,
-) {
+private fun EmptyChat(state: ChatState, modifier: Modifier = Modifier) {
     // Before the first catch-up an empty list only means "nothing cached yet", not "no messages".
     if (state.error == null && !state.isCaughtUp) {
         CircularProgressIndicator(modifier = modifier)
@@ -341,16 +341,14 @@ private fun EmptyChat(
 }
 
 @Composable
-private fun HistoryLoadState(
-    loadState: LoadState,
-    onRetryClick: () -> Unit,
-) {
+private fun HistoryLoadState(loadState: LoadState, onRetryClick: () -> Unit) {
     Box(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         when (loadState) {
             is LoadState.Loading -> CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+
             is LoadState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 val reason = (loadState.error as? LoadMessagesException)?.error?.toUiText()
                 Text(
@@ -363,17 +361,14 @@ private fun HistoryLoadState(
                     Text(stringResource(Res.string.chat_history_retry))
                 }
             }
+
             is LoadState.NotLoading -> Unit
         }
     }
 }
 
 @Composable
-private fun MessageBubble(
-    message: Message,
-    senderName: String?,
-    onRetryClick: () -> Unit,
-) {
+private fun MessageBubble(message: Message, senderName: String?, onRetryClick: () -> Unit) {
     val isOutgoing = message.isOutgoing
     // One node for TalkBack: "Anna, hey, 09:16, Read". A failed message retries on a tap anywhere on the bubble,
     // not just on its 20 dp icon.
@@ -388,7 +383,11 @@ private fun MessageBubble(
     ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+            color = if (isOutgoing) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
             modifier = Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(16.dp)).then(bubbleModifier),
         ) {
             Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -401,7 +400,11 @@ private fun MessageBubble(
                     )
                 }
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(text = message.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f, fill = false))
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = messageTimeText(message.createdAt),
@@ -427,24 +430,28 @@ private fun StatusIcon(status: MessageStatus) {
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
+
         MessageStatus.SENT -> Icon(
             imageVector = Icons.Default.Done,
             contentDescription = stringResource(Res.string.chat_status_sent),
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
+
         MessageStatus.DELIVERED -> Icon(
             imageVector = Icons.Default.DoneAll,
             contentDescription = stringResource(Res.string.chat_status_delivered),
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
+
         MessageStatus.READ -> Icon(
             imageVector = Icons.Default.DoneAll,
             contentDescription = stringResource(Res.string.chat_status_read),
             modifier = Modifier.size(16.dp),
             tint = MaroTheme.colors.readReceipt,
         )
+
         MessageStatus.FAILED -> Icon(
             imageVector = Icons.Default.ErrorOutline,
             contentDescription = stringResource(Res.string.chat_status_failed),
@@ -455,12 +462,7 @@ private fun StatusIcon(status: MessageStatus) {
 }
 
 @Composable
-private fun MessageInput(
-    value: String,
-    canSend: Boolean,
-    onValueChange: (String) -> Unit,
-    onSendClick: () -> Unit,
-) {
+private fun MessageInput(value: String, canSend: Boolean, onValueChange: (String) -> Unit, onSendClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -468,7 +470,10 @@ private fun MessageInput(
         val input = rememberTextFieldValue(value)
         OutlinedTextField(
             value = input.value,
-            onValueChange = { input.value = it; onValueChange(it.text) },
+            onValueChange = {
+                input.value = it
+                onValueChange(it.text)
+            },
             modifier = Modifier.weight(1f),
             placeholder = { Text(stringResource(Res.string.chat_input_hint)) },
             maxLines = 5,
@@ -478,7 +483,13 @@ private fun MessageInput(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
                 contentDescription = stringResource(Res.string.chat_send),
-                tint = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                tint = if (canSend) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = 0.38f,
+                    )
+                },
             )
         }
     }
@@ -494,7 +505,12 @@ private fun ChatScreenPreview() {
     ).map<Message, ChatItem> { ChatItem.MessageItem(it) } + ChatItem.DaySeparator(LocalDate(2026, 9, 30))
     MaroTheme {
         ChatScreen(
-            state = ChatState(header = ChatHeader("Иван Иванов", "ИИ"), connection = null, isCaughtUp = true, typingUserIds = setOf("them")),
+            state = ChatState(
+                header = ChatHeader("Иван Иванов", "ИИ"),
+                connection = null,
+                isCaughtUp = true,
+                typingUserIds = setOf("them"),
+            ),
             items = flowOf(PagingData.from(items)).collectAsLazyPagingItems(),
             onAction = {},
         )
