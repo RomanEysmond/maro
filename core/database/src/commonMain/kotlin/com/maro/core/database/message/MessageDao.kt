@@ -87,8 +87,4 @@ interface MessageDao {
     }
 }
 
-data class MessageWithReceipts(
-    @Embedded val message: MessageEntity,
-    val peerReadAt: Long?,
-    val peerDeliveredAt: Long?,
-)
+data class MessageWithReceipts(@Embedded val message: MessageEntity, val peerReadAt: Long?, val peerDeliveredAt: Long?)

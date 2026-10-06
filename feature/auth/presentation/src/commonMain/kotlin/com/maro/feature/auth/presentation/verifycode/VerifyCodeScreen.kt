@@ -73,10 +73,7 @@ fun VerifyCodeRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VerifyCodeScreen(
-    state: VerifyCodeState,
-    onAction: (VerifyCodeAction) -> Unit,
-) {
+fun VerifyCodeScreen(state: VerifyCodeState, onAction: (VerifyCodeAction) -> Unit) {
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -117,7 +114,10 @@ fun VerifyCodeScreen(
             val code = rememberTextFieldValue(state.code)
             OutlinedTextField(
                 value = code.value,
-                onValueChange = { code.value = it; onAction(VerifyCodeAction.OnCodeChange(it.text)) },
+                onValueChange = {
+                    code.value = it
+                    onAction(VerifyCodeAction.OnCodeChange(it.text))
+                },
                 label = { Text(stringResource(Res.string.verify_code_label)) },
                 modifier = Modifier
                     .fillMaxWidth()

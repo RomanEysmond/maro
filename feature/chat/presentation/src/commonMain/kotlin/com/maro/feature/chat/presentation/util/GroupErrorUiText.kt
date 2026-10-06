@@ -1,6 +1,7 @@
 package com.maro.feature.chat.presentation.util
 
 import com.maro.core.domain.user.UserSearchError
+import com.maro.core.presentation.generated.resources.Res as CoreRes
 import com.maro.core.presentation.generated.resources.error_no_internet
 import com.maro.core.presentation.generated.resources.error_unknown
 import com.maro.core.presentation.util.UiText
@@ -12,7 +13,6 @@ import com.maro.feature.chat.presentation.generated.resources.group_error_invali
 import com.maro.feature.chat.presentation.generated.resources.group_error_not_allowed
 import com.maro.feature.chat.presentation.generated.resources.group_error_not_found
 import com.maro.feature.chat.presentation.generated.resources.group_error_too_many
-import com.maro.core.presentation.generated.resources.Res as CoreRes
 
 fun GroupError.toUiText(): UiText = UiText.Resource(
     when (this) {

@@ -12,9 +12,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** Follows the default network; "connected" means Android has validated that it actually reaches the internet. */
-internal class AndroidConnectivityObserver(
-    context: Context,
-) : ConnectivityObserver {
+internal class AndroidConnectivityObserver(context: Context) : ConnectivityObserver {
 
     private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
 
@@ -39,7 +37,6 @@ internal class AndroidConnectivityObserver(
         .conflate()
         .distinctUntilChanged()
 
-    private fun NetworkCapabilities.isOnline(): Boolean =
-        hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    private fun NetworkCapabilities.isOnline(): Boolean = hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+        hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 }

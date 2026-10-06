@@ -12,15 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -31,6 +22,16 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,25 +41,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.maro.core.designsystem.component.InitialsAvatar
 import com.maro.core.presentation.util.ObserveAsEvents
 import com.maro.feature.profile.presentation.generated.resources.Res
-import com.maro.feature.profile.presentation.generated.resources.profile_bio_empty
-import com.maro.feature.profile.presentation.generated.resources.profile_birth_date
-import com.maro.feature.profile.presentation.generated.resources.profile_loading_error_retry
-import com.maro.feature.profile.presentation.generated.resources.profile_username_empty
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.viewmodel.koinViewModel
 import com.maro.feature.profile.presentation.generated.resources.profile_account
 import com.maro.feature.profile.presentation.generated.resources.profile_account_subtitle
+import com.maro.feature.profile.presentation.generated.resources.profile_bio_empty
+import com.maro.feature.profile.presentation.generated.resources.profile_birth_date
 import com.maro.feature.profile.presentation.generated.resources.profile_chats
 import com.maro.feature.profile.presentation.generated.resources.profile_chats_subtitle
 import com.maro.feature.profile.presentation.generated.resources.profile_dark_theme
 import com.maro.feature.profile.presentation.generated.resources.profile_help
 import com.maro.feature.profile.presentation.generated.resources.profile_language
 import com.maro.feature.profile.presentation.generated.resources.profile_language_current
+import com.maro.feature.profile.presentation.generated.resources.profile_loading_error_retry
 import com.maro.feature.profile.presentation.generated.resources.profile_logout
 import com.maro.feature.profile.presentation.generated.resources.profile_notifications
 import com.maro.feature.profile.presentation.generated.resources.profile_notifications_subtitle
@@ -67,13 +64,12 @@ import com.maro.feature.profile.presentation.generated.resources.profile_section
 import com.maro.feature.profile.presentation.generated.resources.profile_section_more
 import com.maro.feature.profile.presentation.generated.resources.profile_storage
 import com.maro.feature.profile.presentation.generated.resources.profile_storage_subtitle
+import com.maro.feature.profile.presentation.generated.resources.profile_username_empty
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun ProfileRoot(
-    onEditClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    viewModel: ProfileViewModel = koinViewModel(),
-) {
+fun ProfileRoot(onEditClick: () -> Unit, onLogoutClick: () -> Unit, viewModel: ProfileViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     ObserveAsEvents(viewModel.events) { event ->
@@ -90,18 +86,13 @@ fun ProfileRoot(
 }
 
 @Composable
-fun ProfileScreen(
-    state: ProfileState,
-    onAction: (ProfileAction) -> Unit,
-    onLogoutClick: () -> Unit,
-) {
-
+fun ProfileScreen(state: ProfileState, onAction: (ProfileAction) -> Unit, onLogoutClick: () -> Unit) {
     var darkThemeEnabled by remember { mutableStateOf(false) }
     var notificationEnabled by remember { mutableStateOf(true) }
 
     Surface(
         modifier = androidx.compose.ui.Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Column(modifier = androidx.compose.ui.Modifier.verticalScroll(rememberScrollState())) {
             // Заголовок профиля
@@ -121,25 +112,25 @@ fun ProfileScreen(
                 SettingsItem(
                     icon = Icons.AutoMirrored.Filled.Chat,
                     title = stringResource(Res.string.profile_chats),
-                    subtitle = stringResource(Res.string.profile_chats_subtitle)
+                    subtitle = stringResource(Res.string.profile_chats_subtitle),
                 )
                 SettingsItem(
                     icon = Icons.Default.Notifications,
                     title = stringResource(Res.string.profile_notifications),
-                    subtitle = stringResource(Res.string.profile_notifications_subtitle)
+                    subtitle = stringResource(Res.string.profile_notifications_subtitle),
                 )
                 SwitchSettingsItem(
                     icon = Icons.Default.DarkMode,
                     title = stringResource(Res.string.profile_dark_theme),
                     checked = darkThemeEnabled,
-                    onCheckedChange = { darkThemeEnabled = it }
+                    onCheckedChange = { darkThemeEnabled = it },
                 )
                 SettingsItem(
                     icon = Icons.Default.Translate,
                     title = stringResource(Res.string.profile_language),
                     subtitle = stringResource(Res.string.profile_language_current),
                     showChevron = true,
-                    onClick = { /* Язык приложения — в настройках Android (Android 13+) */ }
+                    onClick = { /* Язык приложения — в настройках Android (Android 13+) */ },
                 )
             }
 
@@ -150,18 +141,18 @@ fun ProfileScreen(
                 SettingsItem(
                     icon = Icons.Default.Storage,
                     title = stringResource(Res.string.profile_storage),
-                    subtitle = stringResource(Res.string.profile_storage_subtitle)
+                    subtitle = stringResource(Res.string.profile_storage_subtitle),
                 )
                 SwitchSettingsItem(
                     icon = Icons.Default.Security,
                     title = stringResource(Res.string.profile_privacy),
                     checked = notificationEnabled,
-                    onCheckedChange = { notificationEnabled = it }
+                    onCheckedChange = { notificationEnabled = it },
                 )
                 SettingsItem(
                     icon = Icons.AutoMirrored.Filled.Help,
                     title = stringResource(Res.string.profile_help),
-                    showChevron = true
+                    showChevron = true,
                 )
             }
 
@@ -172,12 +163,12 @@ fun ProfileScreen(
                 onClick = onLogoutClick,
                 modifier = androidx.compose.ui.Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(16.dp),
             ) {
                 Text(
                     text = stringResource(Res.string.profile_logout),
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
@@ -185,10 +176,7 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileHeader(
-    state: ProfileState,
-    onAction: (ProfileAction) -> Unit,
-) {
+private fun ProfileHeader(state: ProfileState, onAction: (ProfileAction) -> Unit) {
     val profile = state.profile
 
     Column(
@@ -245,16 +233,13 @@ private fun ProfileHeader(
 }
 
 /** "+79001234567" -> "+7 900 123-45-67"; anything unexpected is shown as is. */
-private fun formatPhone(phone: String): String {
-    if (phone.length != 12 || !phone.startsWith("+7")) return phone
-    return "+7 ${phone.substring(2, 5)} ${phone.substring(5, 8)}-${phone.substring(8, 10)}-${phone.substring(10)}"
-}
+private fun formatPhone(phone: String): String =
+    if (RUSSIAN_PHONE.matches(phone)) RUSSIAN_PHONE.replace(phone, "+7 $1 $2-$3-$4") else phone
+
+private val RUSSIAN_PHONE = Regex("""\+7(\d{3})(\d{3})(\d{2})(\d{2})""")
 
 @Composable
-private fun SettingsCategory(
-    title: String,
-    content: @Composable () -> Unit
-) {
+private fun SettingsCategory(title: String, content: @Composable () -> Unit) {
     Column(modifier = androidx.compose.ui.Modifier.fillMaxWidth()) {
         Text(
             text = title,
@@ -263,15 +248,15 @@ private fun SettingsCategory(
             modifier = androidx.compose.ui.Modifier.padding(
                 start = 16.dp,
                 top = 8.dp,
-                bottom = 8.dp
-            )
+                bottom = 8.dp,
+            ),
         )
 
         Card(
             modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = RectangleShape
+            shape = RectangleShape,
         ) {
             Column {
                 content()
@@ -286,20 +271,20 @@ private fun SettingsItem(
     title: String,
     subtitle: String? = null,
     showChevron: Boolean = false,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = androidx.compose.ui.Modifier
             .fillMaxWidth()
             .clickable { onClick?.invoke() }
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = androidx.compose.ui.Modifier.size(24.dp)
+            modifier = androidx.compose.ui.Modifier.size(24.dp),
         )
 
         Spacer(modifier = androidx.compose.ui.Modifier.width(24.dp))
@@ -307,13 +292,13 @@ private fun SettingsItem(
         Column(modifier = androidx.compose.ui.Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyLarge,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
         }
@@ -322,30 +307,25 @@ private fun SettingsItem(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
             )
         }
     }
 }
 
 @Composable
-private fun SwitchSettingsItem(
-    icon: ImageVector,
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+private fun SwitchSettingsItem(icon: ImageVector, title: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = androidx.compose.ui.Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = androidx.compose.ui.Modifier.size(24.dp)
+            modifier = androidx.compose.ui.Modifier.size(24.dp),
         )
 
         Spacer(modifier = androidx.compose.ui.Modifier.width(24.dp))
@@ -353,7 +333,7 @@ private fun SwitchSettingsItem(
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = androidx.compose.ui.Modifier.weight(1f)
+            modifier = androidx.compose.ui.Modifier.weight(1f),
         )
 
         Switch(
@@ -361,8 +341,8 @@ private fun SwitchSettingsItem(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.primary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-            )
+                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+            ),
         )
     }
 }

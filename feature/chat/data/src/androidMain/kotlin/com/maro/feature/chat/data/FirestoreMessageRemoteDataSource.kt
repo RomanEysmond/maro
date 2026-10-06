@@ -22,9 +22,7 @@ import kotlinx.coroutines.flow.callbackFlow
  * Firestore `chats/{chatId}/messages/{clientId}`; the shape is enforced by `firestore.rules`. The message and
  * the chat's `lastMessage*` are written in one transaction, so the chat list can never disagree with the chat.
  */
-internal class FirestoreMessageRemoteDataSource(
-    private val firestore: FirebaseFirestore,
-) : MessageRemoteDataSource {
+internal class FirestoreMessageRemoteDataSource(private val firestore: FirebaseFirestore) : MessageRemoteDataSource {
 
     override suspend fun send(message: RemoteMessage): EmptyResult<DataError.Network> {
         val chatRef = firestore.collection(CHATS).document(message.chatId)
@@ -89,6 +87,7 @@ internal class FirestoreMessageRemoteDataSource(
             .addSnapshotListener { snapshot, error ->
                 when {
                     error != null -> trySend(Result.Error(error.toNetworkError()))
+
                     // Server snapshots only, like every other read here: the cache is not the source of truth.
                     snapshot != null && !snapshot.metadata.isFromCache ->
                         trySend(Result.Success(snapshot.documents.mapNotNull { it.toMessage(chatId) }))
@@ -113,7 +112,8 @@ internal class FirestoreMessageRemoteDataSource(
             FieldPath.of(field, userId),
             mapOf(
                 "messageId" to messageId,
-                "at" to Timestamp(atMillis / MILLIS_PER_SECOND, ((atMillis % MILLIS_PER_SECOND) * NANOS_PER_MILLI).toInt()),
+                "at" to
+                    Timestamp(atMillis / MILLIS_PER_SECOND, ((atMillis % MILLIS_PER_SECOND) * NANOS_PER_MILLI).toInt()),
             ),
         ).await()
         Result.Success(Unit)
@@ -123,33 +123,36 @@ internal class FirestoreMessageRemoteDataSource(
         Result.Error(e.toNetworkError())
     }
 
-    private suspend fun fetch(chatId: String, query: Query): Result<List<RemoteMessage>, DataError.Network> =
-        try {
-            // Source.SERVER: offline has to be a failure, not an empty page from the (memory-only) cache —
-            // an empty page would be taken for "no more messages" and end the paging for good.
-            val documents = query.get(Source.SERVER).await().documents
-            Result.Success(documents.mapNotNull { it.toMessage(chatId) })
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.Error(e.toNetworkError())
-        }
+    private suspend fun fetch(chatId: String, query: Query): Result<List<RemoteMessage>, DataError.Network> = try {
+        // Source.SERVER: offline has to be a failure, not an empty page from the (memory-only) cache —
+        // an empty page would be taken for "no more messages" and end the paging for good.
+        val documents = query.get(Source.SERVER).await().documents
+        Result.Success(documents.mapNotNull { it.toMessage(chatId) })
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.Error(e.toNetworkError())
+    }
 
-    private fun messages(chatId: String): Query =
-        firestore.collection(CHATS).document(chatId).collection(MESSAGES)
+    private fun messages(chatId: String): Query = firestore.collection(CHATS).document(chatId).collection(MESSAGES)
 
     // The id breaks ties between messages with the same timestamp, so a cursor is an exact position.
     private fun Query.oldestFirst(): Query =
         orderBy(FIELD_CREATED_AT, Query.Direction.ASCENDING).orderBy(FieldPath.documentId(), Query.Direction.ASCENDING)
 
-    private fun Query.newestFirst(): Query =
-        orderBy(FIELD_CREATED_AT, Query.Direction.DESCENDING).orderBy(FieldPath.documentId(), Query.Direction.DESCENDING)
+    private fun Query.newestFirst(): Query = orderBy(
+        FIELD_CREATED_AT,
+        Query.Direction.DESCENDING,
+    ).orderBy(FieldPath.documentId(), Query.Direction.DESCENDING)
 
     private fun Query.startAfterOrAll(cursor: MessageCursor?): Query =
         if (cursor == null) this else startAfter(*cursor.toFieldValues())
 
     private fun MessageCursor.toFieldValues(): Array<Any> = arrayOf(
-        Timestamp(createdAtMicros / MICROS_PER_SECOND, ((createdAtMicros % MICROS_PER_SECOND) * NANOS_PER_MICRO).toInt()),
+        Timestamp(
+            createdAtMicros / MICROS_PER_SECOND,
+            ((createdAtMicros % MICROS_PER_SECOND) * NANOS_PER_MICRO).toInt(),
+        ),
         id,
     )
 
@@ -183,9 +186,13 @@ internal class FirestoreMessageRemoteDataSource(
             FirebaseFirestoreException.Code.UNAVAILABLE,
             FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
             -> DataError.Network.NO_INTERNET
+
             FirebaseFirestoreException.Code.PERMISSION_DENIED -> DataError.Network.FORBIDDEN
+
             FirebaseFirestoreException.Code.UNAUTHENTICATED -> DataError.Network.UNAUTHORIZED
+
             FirebaseFirestoreException.Code.NOT_FOUND -> DataError.Network.NOT_FOUND
+
             else -> DataError.Network.UNKNOWN
         }
     }

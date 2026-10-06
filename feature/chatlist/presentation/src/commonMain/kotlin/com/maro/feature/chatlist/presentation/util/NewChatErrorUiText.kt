@@ -1,17 +1,17 @@
 package com.maro.feature.chatlist.presentation.util
 
+import com.maro.core.presentation.generated.resources.Res as CoreRes
 import com.maro.core.presentation.generated.resources.error_unknown
 import com.maro.core.presentation.util.UiText
 import com.maro.feature.chatlist.domain.NewChatError
 import com.maro.feature.chatlist.presentation.generated.resources.Res
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_group_title
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_invalid_username
-import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_no_members
-import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_too_many
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_no_internet
+import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_no_members
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_not_found
 import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_self
-import com.maro.core.presentation.generated.resources.Res as CoreRes
+import com.maro.feature.chatlist.presentation.generated.resources.new_chat_error_too_many
 
 fun NewChatError.toUiText(): UiText {
     val resource = when (this) {

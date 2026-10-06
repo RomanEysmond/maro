@@ -95,10 +95,15 @@ class ChatViewModel(
                 repository.saveDraft(chatId, input)
                 typingRepository.setTyping(chatId, isTyping = input.isNotBlank())
             }
+
             is ChatAction.OnVisibilityChange -> isVisible.value = action.isVisible
+
             ChatAction.OnSendClick -> send()
+
             is ChatAction.OnRetryClick -> viewModelScope.launch { repository.retryMessage(action.messageId) }
+
             ChatAction.OnBackClick -> viewModelScope.launch { _events.send(ChatEvent.NavigateBack) }
+
             ChatAction.OnHeaderClick -> if (_state.value.header?.isGroup == true) {
                 viewModelScope.launch { _events.send(ChatEvent.NavigateToGroupInfo(chatId)) }
             }

@@ -1,5 +1,6 @@
 package com.maro.feature.auth.presentation.util
 
+import com.maro.core.presentation.generated.resources.Res as CoreRes
 import com.maro.core.presentation.generated.resources.error_unknown
 import com.maro.core.presentation.util.UiText
 import com.maro.feature.auth.domain.AuthError
@@ -9,7 +10,6 @@ import com.maro.feature.auth.presentation.generated.resources.auth_error_invalid
 import com.maro.feature.auth.presentation.generated.resources.auth_error_invalid_phone
 import com.maro.feature.auth.presentation.generated.resources.auth_error_network
 import com.maro.feature.auth.presentation.generated.resources.auth_error_too_many_requests
-import com.maro.core.presentation.generated.resources.Res as CoreRes
 
 fun AuthError.toUiText(): UiText {
     val resource = when (this) {

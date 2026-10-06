@@ -57,7 +57,9 @@ class DefaultGroupRepositoryTest {
     fun `adding passes the person's card on`() = runTest {
         repository.addMember("g", UserCard("anna", "Анна", "Петрова", "anna_p"))
 
-        assertThat(remote.lastCall).isEqualTo(listOf("add", "g", MemberCard("anna", "Анна", "Петрова", "anna_p"), "me", "msg-1"))
+        assertThat(
+            remote.lastCall,
+        ).isEqualTo(listOf("add", "g", MemberCard("anna", "Анна", "Петрова", "anna_p"), "me", "msg-1"))
     }
 
     @Test
@@ -79,7 +81,9 @@ class DefaultGroupRepositoryTest {
 
     @Test
     fun `adding yourself is refused locally`() = runTest {
-        assertThat(repository.addMember("g", UserCard("me", "Я", "", "me_me"))).isEqualTo(Result.Error(GroupError.ALREADY_MEMBER))
+        assertThat(
+            repository.addMember("g", UserCard("me", "Я", "", "me_me")),
+        ).isEqualTo(Result.Error(GroupError.ALREADY_MEMBER))
         assertThat(remote.lastCall).isNull()
     }
 }

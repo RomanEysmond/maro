@@ -70,6 +70,7 @@ class EditProfileViewModel(
             viewModelScope.launch {
                 when (val result = repository.refreshProfile()) {
                     is Result.Error -> _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
+
                     is Result.Success -> {
                         repository.profile.value?.let(::fill)
                         _state.update { it.copy(isLoading = false) }
@@ -96,17 +97,23 @@ class EditProfileViewModel(
             is EditProfileAction.OnFirstNameChange -> _state.update {
                 it.copy(firstName = action.value.take(ProfileRules.MAX_NAME_LENGTH), error = null)
             }
+
             is EditProfileAction.OnLastNameChange -> _state.update {
                 it.copy(lastName = action.value.take(ProfileRules.MAX_NAME_LENGTH), error = null)
             }
+
             is EditProfileAction.OnUsernameChange -> _state.update {
                 it.copy(username = sanitizeUsername(action.value), usernameError = null, error = null)
             }
+
             is EditProfileAction.OnBioChange -> _state.update {
                 it.copy(bio = action.value.take(ProfileRules.MAX_BIO_LENGTH), error = null)
             }
+
             is EditProfileAction.OnBirthDateChange -> _state.update { it.copy(birthDate = action.value, error = null) }
+
             EditProfileAction.OnSaveClick -> save()
+
             EditProfileAction.OnSkipClick, EditProfileAction.OnBackClick -> close()
         }
     }
@@ -138,6 +145,7 @@ class EditProfileViewModel(
         viewModelScope.launch {
             when (val result = repository.updateProfile(update)) {
                 is Result.Success -> _events.send(EditProfileEvent.Close)
+
                 is Result.Error -> _state.update {
                     if (result.error == ProfileError.USERNAME_TAKEN) {
                         it.copy(isSaving = false, usernameError = result.error.toUiText())
@@ -154,8 +162,7 @@ class EditProfileViewModel(
     }
 
     /** Lets only what a username may contain through, so the field can never hold an invalid character. */
-    private fun sanitizeUsername(raw: String): String =
-        ProfileRules.normalizeUsername(raw)
-            .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
-            .take(ProfileRules.MAX_USERNAME_LENGTH)
+    private fun sanitizeUsername(raw: String): String = ProfileRules.normalizeUsername(raw)
+        .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
+        .take(ProfileRules.MAX_USERNAME_LENGTH)
 }

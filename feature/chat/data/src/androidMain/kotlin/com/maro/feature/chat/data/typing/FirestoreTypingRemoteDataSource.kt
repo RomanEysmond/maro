@@ -13,9 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
 /** `chats/{chatId}/typing/{uid}` = `{typing, at}`; only the user writes their own document (see `firestore.rules`). */
-internal class FirestoreTypingRemoteDataSource(
-    private val firestore: FirebaseFirestore,
-) : TypingRemoteDataSource {
+internal class FirestoreTypingRemoteDataSource(private val firestore: FirebaseFirestore) : TypingRemoteDataSource {
 
     override fun observeTyping(chatId: String): Flow<List<RemoteTyping>> = callbackFlow {
         val registration = typing(chatId).addSnapshotListener { snapshot, _ ->

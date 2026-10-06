@@ -28,9 +28,16 @@ class DefaultNewChatRepository(
     override suspend fun findUser(username: String): Result<FoundUser, NewChatError> =
         when (val result = users.findByUsername(username)) {
             is Result.Error -> Result.Error(result.error.toNewChatError())
+
             is Result.Success -> {
                 val user = result.data
-                if (user.id == currentUser.userId) Result.Error(NewChatError.CANNOT_CHAT_WITH_SELF) else Result.Success(user)
+                if (user.id ==
+                    currentUser.userId
+                ) {
+                    Result.Error(NewChatError.CANNOT_CHAT_WITH_SELF)
+                } else {
+                    Result.Success(user)
+                }
             }
         }
 

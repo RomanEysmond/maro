@@ -10,9 +10,7 @@ import com.maro.core.domain.util.Result
 import kotlin.coroutines.cancellation.CancellationException
 
 /** Creates `chats/{chatId}`: direct chats and groups; the shapes are enforced by `firestore.rules`. */
-internal class FirestoreNewChatRemoteDataSource(
-    private val firestore: FirebaseFirestore,
-) : NewChatRemoteDataSource {
+internal class FirestoreNewChatRemoteDataSource(private val firestore: FirebaseFirestore) : NewChatRemoteDataSource {
 
     override suspend fun createChatIfAbsent(
         chatId: String,
@@ -104,8 +102,11 @@ internal class FirestoreNewChatRemoteDataSource(
             FirebaseFirestoreException.Code.UNAVAILABLE,
             FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
             -> DataError.Network.NO_INTERNET
+
             FirebaseFirestoreException.Code.PERMISSION_DENIED -> DataError.Network.FORBIDDEN
+
             FirebaseFirestoreException.Code.UNAUTHENTICATED -> DataError.Network.UNAUTHORIZED
+
             else -> DataError.Network.UNKNOWN
         }
     }

@@ -1,0 +1,53 @@
+# Overrides on top of detekt's default rules (buildUponDefaultConfig). Each one says why.
+
+naming:
+  FunctionNaming:
+    # Composables are named like classes (`ChatScreen`); test names are sentences in backticks.
+    ignoreAnnotated: ['Composable']
+    excludes: ['**/commonTest/**', '**/test/**', '**/androidTest/**']
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][_A-Z0-9]*|[A-Z][A-Za-z0-9]*'
+
+complexity:
+  LongParameterList:
+    # A composable takes its state and every callback as parameters (Root/Screen split, slot APIs).
+    ignoreAnnotated: ['Composable']
+    # Constructors are filled by Koin; parameters with defaults are test seams (scope, clock, id generator).
+    ignoreDefaultParameters: true
+    constructorThreshold: 8
+  LongMethod:
+    # Screen layouts are long by nature; their parts are already split where it helps reading.
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    # One repository / DAO / data source per aggregate (chat, messages): their interfaces grow with the features.
+    thresholdInInterfaces: 20
+    thresholdInClasses: 20
+    thresholdInFiles: 20
+    ignorePrivate: true
+
+style:
+  MagicNumber:
+    # Paddings and sizes in dp, preview data, test data; a named property is already the constant.
+    ignoreAnnotated: ['Composable', 'Preview']
+    ignorePropertyDeclaration: true
+    excludes: ['**/commonTest/**', '**/test/**', '**/androidTest/**']
+  UnusedPrivateMember:
+    # @Preview functions are only called by the IDE.
+    ignoreAnnotated: ['Preview']
+  ReturnCount:
+    # Off: parsing a Firestore document is a chain of `field ?: return null` (a document of the wrong shape is
+    # skipped), and the rule counts every such exit. Early exits are the house style, not a smell.
+    active: false
+
+performance:
+  SpreadOperator:
+    # Only used to forward varargs to vararg APIs (Firestore cursors, string resource arguments), never in a loop.
+    active: false
+
+exceptions:
+  # The data layer is the boundary to Firebase and Ktor: every call there rethrows CancellationException first, then
+  # maps whatever the SDK throws to a DataError (android-error-handling). Catching Exception is the point there.
+  TooGenericExceptionCaught:
+    excludes: ['**/data/**', '**/commonTest/**', '**/test/**']
+  SwallowedException:
+    excludes: ['**/data/**']

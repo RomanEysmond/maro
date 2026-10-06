@@ -18,16 +18,12 @@ import com.maro.feature.auth.presentation.generated.resources.fon
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
-fun WelcomeRoot(
-    onNavigateToRegistration: () -> Unit,
-) {
+fun WelcomeRoot(onNavigateToRegistration: () -> Unit) {
     WelcomeScreen(onSkipClick = onNavigateToRegistration)
 }
 
 @Composable
-fun WelcomeScreen(
-    onSkipClick: () -> Unit,
-) {
+fun WelcomeScreen(onSkipClick: () -> Unit) {
     val backgroundImage: Painter = painterResource(Res.drawable.fon)
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -35,7 +31,7 @@ fun WelcomeScreen(
             painter = backgroundImage,
             contentDescription = "Background",
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop // или FillBounds, FillWidth, FillHeight и т.д.
+            contentScale = ContentScale.Crop, // или FillBounds, FillWidth, FillHeight и т.д.
         )
         Column(modifier = Modifier.align(alignment = Alignment.Center)) {
             Text(
@@ -48,12 +44,12 @@ fun WelcomeScreen(
                 text = "Maro",
                 fontSize = 35.sp,
                 color = Color(0xFF22272E),
-                modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
+                modifier = Modifier.align(alignment = Alignment.CenterHorizontally),
             )
         }
         TextButton(
             onClick = onSkipClick,
-            modifier = Modifier.align(alignment = Alignment.BottomEnd)
+            modifier = Modifier.align(alignment = Alignment.BottomEnd),
         ) {
             Text(text = "Skip", color = Color(0xFFB4B4C7), fontSize = 20.sp)
         }

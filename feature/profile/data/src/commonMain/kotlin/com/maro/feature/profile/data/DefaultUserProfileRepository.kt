@@ -15,9 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class DefaultUserProfileRepository(
-    private val remote: UserProfileRemoteDataSource,
-) : UserProfileRepository {
+class DefaultUserProfileRepository(private val remote: UserProfileRemoteDataSource) : UserProfileRepository {
 
     private val _profile = MutableStateFlow<UserProfile?>(null)
     override val profile: StateFlow<UserProfile?> = _profile.asStateFlow()
@@ -26,19 +24,18 @@ class DefaultUserProfileRepository(
         firstName: String,
         lastName: String,
         phone: String,
-    ): Result<EnsuredProfile, DataError.Network> {
-        return when (val existing = remote.fetchCurrent()) {
-            is Result.Error -> existing
-            is Result.Success -> {
-                val found = existing.data
-                if (found != null) {
-                    _profile.value = found
-                    Result.Success(EnsuredProfile(found, isNew = false))
-                } else {
-                    remote.createCurrent(firstName, lastName, phone)
-                        .onSuccess { _profile.value = it }
-                        .map { EnsuredProfile(it, isNew = true) }
-                }
+    ): Result<EnsuredProfile, DataError.Network> = when (val existing = remote.fetchCurrent()) {
+        is Result.Error -> existing
+
+        is Result.Success -> {
+            val found = existing.data
+            if (found != null) {
+                _profile.value = found
+                Result.Success(EnsuredProfile(found, isNew = false))
+            } else {
+                remote.createCurrent(firstName, lastName, phone)
+                    .onSuccess { _profile.value = it }
+                    .map { EnsuredProfile(it, isNew = true) }
             }
         }
     }
@@ -46,6 +43,7 @@ class DefaultUserProfileRepository(
     override suspend fun refreshProfile(): EmptyResult<DataError.Network> {
         return when (val result = remote.fetchCurrent()) {
             is Result.Error -> result
+
             is Result.Success -> {
                 val found = result.data ?: return Result.Error(DataError.Network.NOT_FOUND)
                 _profile.value = found
@@ -54,9 +52,8 @@ class DefaultUserProfileRepository(
         }
     }
 
-    override suspend fun updateProfile(update: ProfileUpdate): EmptyResult<ProfileError> {
-        return remote.updateCurrent(update).onSuccess {
+    override suspend fun updateProfile(update: ProfileUpdate): EmptyResult<ProfileError> =
+        remote.updateCurrent(update).onSuccess {
             _profile.update { it?.withUpdate(update) }
         }
-    }
 }

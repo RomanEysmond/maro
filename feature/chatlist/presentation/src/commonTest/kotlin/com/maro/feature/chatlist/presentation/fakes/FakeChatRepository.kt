@@ -13,6 +13,7 @@ class FakeChatRepository : ChatRepository {
     override val chats: StateFlow<List<Chat>> = _chats
 
     var syncResult: EmptyResult<DataError.Network> = Result.Success(Unit)
+
     /** What `sync()` writes into [chats] on success, simulating the background upsert into Room. */
     var chatsAfterSync: List<Chat>? = null
     var syncCalls = 0

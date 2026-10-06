@@ -16,6 +16,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("com.android.library")
             pluginManager.apply("org.jetbrains.kotlin.multiplatform")
+            pluginManager.apply("maro.code.quality")
 
             val catalog = libs
             configureExt<LibraryExtension> {
@@ -24,6 +25,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
 
                 defaultConfig {
                     minSdk = catalog.intVersion("minSdk")
+                }
+                lint {
+                    configureMaroLint()
                 }
                 compileOptions {
                     sourceCompatibility = JAVA_VERSION

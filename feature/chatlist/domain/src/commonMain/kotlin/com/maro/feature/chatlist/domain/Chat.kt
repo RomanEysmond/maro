@@ -38,7 +38,10 @@ data class LastMessage(
     /** Epoch millis. */
     val sentAt: Long,
     val receipt: LastMessageReceipt? = null,
-    /** Groups: the first name of whoever wrote it ("Anna: …"); `null` in a direct chat or for the user's own message. */
+    /**
+     * Groups: the first name of whoever wrote it ("Anna: …");
+     * `null` in a direct chat or for the user's own message.
+     */
     val senderName: String? = null,
 )
 
@@ -75,8 +78,7 @@ data class Chat(
 }
 
 /** "Поход в горы" -> "ПВ": the first letters of the first two words. */
-fun groupInitials(title: String): String =
-    title.split(' ').filter { it.isNotBlank() }.take(2)
-        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .ifEmpty { "?" }
+fun groupInitials(title: String): String = title.split(' ').filter { it.isNotBlank() }.take(2)
+    .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+    .joinToString("")
+    .ifEmpty { "?" }

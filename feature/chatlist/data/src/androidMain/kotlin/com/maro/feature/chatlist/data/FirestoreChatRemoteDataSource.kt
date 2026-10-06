@@ -53,6 +53,7 @@ internal class FirestoreChatRemoteDataSource(
         val registration = query(uid).addSnapshotListener { snapshot, error ->
             when {
                 error != null -> trySend(Result.Error(error.toNetworkError()))
+
                 // Only the server's answer may replace Room: offline, the first snapshot comes from the empty
                 // memory cache, and taken as the full list it would delete every cached chat.
                 snapshot != null && !snapshot.metadata.isFromCache ->
@@ -62,14 +63,9 @@ internal class FirestoreChatRemoteDataSource(
         awaitClose { registration.remove() }
     }
 
-    private fun query(uid: String) = firestore.collection(CHATS).whereArrayContains(FIELD_PARTICIPANTS, uid)
-
-    private fun DocumentSnapshot.toChat(currentUid: String): Chat? {
-        val isGroup = getString(FIELD_TYPE) == "group"
-        val members = (get(FIELD_PARTICIPANTS) as? List<*>)?.filterIsInstance<String>() ?: return null
-        val info = get(FIELD_PARTICIPANT_INFO) as? Map<*, *> ?: return null
-        // participantInfo also keeps people who have left a group: their names stay for the history.
-        val participants = info.mapNotNull { (uid, card) ->
+    /** participantInfo also keeps people who have left a group: their names stay for the history. */
+    private fun participantsOf(info: Map<*, *>, members: List<String>): List<ChatParticipant> =
+        info.mapNotNull { (uid, card) ->
             val fields = card as? Map<*, *> ?: return@mapNotNull null
             ChatParticipant(
                 id = uid as? String ?: return@mapNotNull null,
@@ -79,6 +75,14 @@ internal class FirestoreChatRemoteDataSource(
                 isMember = uid in members,
             )
         }
+
+    private fun query(uid: String) = firestore.collection(CHATS).whereArrayContains(FIELD_PARTICIPANTS, uid)
+
+    private fun DocumentSnapshot.toChat(currentUid: String): Chat? {
+        val isGroup = getString(FIELD_TYPE) == "group"
+        val members = (get(FIELD_PARTICIPANTS) as? List<*>)?.filterIsInstance<String>() ?: return null
+        val info = get(FIELD_PARTICIPANT_INFO) as? Map<*, *> ?: return null
+        val participants = participantsOf(info, members)
         val otherParticipant = if (isGroup) {
             null
         } else {
@@ -124,8 +128,11 @@ internal class FirestoreChatRemoteDataSource(
             FirebaseFirestoreException.Code.UNAVAILABLE,
             FirebaseFirestoreException.Code.DEADLINE_EXCEEDED,
             -> DataError.Network.NO_INTERNET
+
             FirebaseFirestoreException.Code.PERMISSION_DENIED -> DataError.Network.FORBIDDEN
+
             FirebaseFirestoreException.Code.UNAUTHENTICATED -> DataError.Network.UNAUTHORIZED
+
             else -> DataError.Network.UNKNOWN
         }
     }

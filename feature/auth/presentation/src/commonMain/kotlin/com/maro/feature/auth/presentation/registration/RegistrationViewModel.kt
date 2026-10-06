@@ -39,7 +39,9 @@ class RegistrationViewModel(
 
     init {
         draft.restore()?.let { saved ->
-            _state.update { it.copy(firstName = saved.firstName, lastName = saved.lastName, phoneNumber = saved.phoneNumber) }
+            _state.update {
+                it.copy(firstName = saved.firstName, lastName = saved.lastName, phoneNumber = saved.phoneNumber)
+            }
         }
         _state.map { RegistrationDraft(it.firstName, it.lastName, it.phoneNumber) }
             .distinctUntilChanged()
@@ -53,11 +55,15 @@ class RegistrationViewModel(
     fun onAction(action: RegistrationAction) {
         when (action) {
             is RegistrationAction.OnFirstNameChange -> _state.update { it.copy(firstName = action.value, error = null) }
+
             is RegistrationAction.OnLastNameChange -> _state.update { it.copy(lastName = action.value, error = null) }
+
             is RegistrationAction.OnPhoneNumberChange -> {
                 _state.update { it.copy(phoneNumber = normalizePhoneInput(action.value), error = null) }
             }
+
             RegistrationAction.OnBackClick -> send(RegistrationEvent.NavigateBack)
+
             RegistrationAction.OnContinueClick -> requestCode()
         }
     }
@@ -76,11 +82,13 @@ class RegistrationViewModel(
                 is Result.Error -> {
                     _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
                 }
+
                 is Result.Success -> when (result.data) {
                     SendCodeOutcome.CodeSent -> {
                         _state.update { it.copy(isLoading = false) }
                         _events.send(RegistrationEvent.NavigateToVerifyCode(firstName, lastName, phone))
                     }
+
                     SendCodeOutcome.AutoVerified -> completeProfile(firstName, lastName, phone)
                 }
             }
@@ -90,6 +98,7 @@ class RegistrationViewModel(
     private suspend fun completeProfile(firstName: String, lastName: String, phone: String) {
         when (val result = userProfileRepository.ensureProfile(firstName, lastName, phone)) {
             is Result.Error -> _state.update { it.copy(isLoading = false, error = result.error.toUiText()) }
+
             is Result.Success -> {
                 _state.update { it.copy(isLoading = false) }
                 _events.send(RegistrationEvent.Authenticated(result.data.isNew))

@@ -8,8 +8,4 @@ import androidx.room3.PrimaryKey
  * own, not a column of `chats`: `ChatDao.replaceAll` rewrites chat rows from the server, which knows nothing of drafts.
  */
 @Entity(tableName = "chat_drafts")
-data class ChatDraftEntity(
-    @PrimaryKey val chatId: String,
-    val text: String,
-    val updatedAt: Long,
-)
+data class ChatDraftEntity(@PrimaryKey val chatId: String, val text: String, val updatedAt: Long)

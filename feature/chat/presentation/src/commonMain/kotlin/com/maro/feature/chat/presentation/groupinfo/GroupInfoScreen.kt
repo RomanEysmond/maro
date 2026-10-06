@@ -65,11 +65,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun GroupInfoRoot(
-    viewModel: GroupInfoViewModel,
-    onNavigateBack: () -> Unit,
-    onLeftGroup: () -> Unit,
-) {
+fun GroupInfoRoot(viewModel: GroupInfoViewModel, onNavigateBack: () -> Unit, onLeftGroup: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     ObserveAsEvents(viewModel.events) { event ->
@@ -84,17 +80,17 @@ fun GroupInfoRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GroupInfoScreen(
-    state: GroupInfoState,
-    onAction: (GroupInfoAction) -> Unit,
-) {
+fun GroupInfoScreen(state: GroupInfoState, onAction: (GroupInfoAction) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(Res.string.group_info_title)) },
                 navigationIcon = {
                     IconButton(onClick = { onAction(GroupInfoAction.OnBackClick) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.chat_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(Res.string.chat_back),
+                        )
                     }
                 },
             )
@@ -112,7 +108,11 @@ fun GroupInfoScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = header.title, style = MaterialTheme.typography.titleLarge)
                         Text(
-                            text = pluralStringResource(Res.plurals.chat_members, header.memberCount, header.memberCount),
+                            text = pluralStringResource(
+                                Res.plurals.chat_members,
+                                header.memberCount,
+                                header.memberCount,
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         )
@@ -129,7 +129,10 @@ fun GroupInfoScreen(
                 val addQuery = rememberTextFieldValue(state.addQuery)
                 OutlinedTextField(
                     value = addQuery.value,
-                    onValueChange = { addQuery.value = it; onAction(GroupInfoAction.OnAddQueryChange(it.text)) },
+                    onValueChange = {
+                        addQuery.value = it
+                        onAction(GroupInfoAction.OnAddQueryChange(it.text))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(Res.string.group_info_add_hint)) },
                     prefix = { Text("@") },
@@ -141,7 +144,10 @@ fun GroupInfoScreen(
                             CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         } else {
                             IconButton(onClick = { onAction(GroupInfoAction.OnAddClick) }, enabled = state.canAdd) {
-                                Icon(Icons.Default.PersonAdd, contentDescription = stringResource(Res.string.group_info_add))
+                                Icon(
+                                    Icons.Default.PersonAdd,
+                                    contentDescription = stringResource(Res.string.group_info_add),
+                                )
                             }
                         }
                     },
@@ -149,7 +155,11 @@ fun GroupInfoScreen(
             }
 
             state.error?.let { error ->
-                Text(text = error.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = error.asString(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
 
             LazyColumn(modifier = Modifier.weight(1f)) {
@@ -164,7 +174,11 @@ fun GroupInfoScreen(
                 enabled = !state.isBusy,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             ) {
-                Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Icon(
+                    Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(Res.string.group_info_leave), color = MaterialTheme.colorScheme.error)
             }
@@ -179,12 +193,19 @@ fun GroupInfoScreen(
                 val title = rememberTextFieldValue(draft)
                 OutlinedTextField(
                     value = title.value,
-                    onValueChange = { title.value = it; onAction(GroupInfoAction.OnRenameChange(it.text)) },
+                    onValueChange = {
+                        title.value = it
+                        onAction(GroupInfoAction.OnRenameChange(it.text))
+                    },
                     singleLine = true,
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onAction(GroupInfoAction.OnRenameConfirm) }, enabled = draft.isNotBlank() && !state.isBusy) {
+                TextButton(
+                    onClick = { onAction(GroupInfoAction.OnRenameConfirm) },
+                    enabled =
+                        draft.isNotBlank() && !state.isBusy,
+                ) {
                     Text(stringResource(Res.string.group_info_save))
                 }
             },
@@ -203,7 +224,11 @@ fun GroupInfoScreen(
             text = {
                 Text(
                     stringResource(
-                        if (state.canManage) Res.string.group_info_leave_text_creator else Res.string.group_info_leave_text,
+                        if (state.canManage) {
+                            Res.string.group_info_leave_text_creator
+                        } else {
+                            Res.string.group_info_leave_text
+                        },
                     ),
                 )
             },
@@ -233,7 +258,11 @@ private fun MemberRow(member: ChatMember, isCreator: Boolean) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = member.fullName, style = MaterialTheme.typography.titleSmall)
             member.username?.let { username ->
-                Text(text = "@$username", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "@$username",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
         if (isCreator) {

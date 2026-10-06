@@ -33,12 +33,10 @@ data class VerifyCodeRoute(
 
 /**
  * Navigation graph of the auth feature.
- * @param onAuthenticated cross-feature callback: called when the user is signed in and has a profile; `isNewUser` is true right after the first sign-in.
+ * @param onAuthenticated cross-feature callback: called when the user is signed in and has a profile;
+ *   `isNewUser` is true right after the first sign-in.
  */
-fun NavGraphBuilder.authGraph(
-    navController: NavController,
-    onAuthenticated: (isNewUser: Boolean) -> Unit,
-) {
+fun NavGraphBuilder.authGraph(navController: NavController, onAuthenticated: (isNewUser: Boolean) -> Unit) {
     navigation<AuthGraphRoute>(startDestination = WelcomeRoute) {
         composable<WelcomeRoute> {
             WelcomeRoot(

@@ -40,8 +40,11 @@ internal class FcmPushRegistrar(
             throw e
         } catch (e: FirebaseFirestoreException) {
             Result.Error(
-                if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) DataError.Network.FORBIDDEN
-                else DataError.Network.NO_INTERNET,
+                if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    DataError.Network.FORBIDDEN
+                } else {
+                    DataError.Network.NO_INTERNET
+                },
             )
         } catch (e: Exception) {
             // Getting the FCM token fails without Play Services or without a network.

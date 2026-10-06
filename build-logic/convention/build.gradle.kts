@@ -25,6 +25,8 @@ dependencies {
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.compose.gradlePlugin)
     compileOnly(libs.compose.compiler.gradlePlugin)
+    compileOnly(libs.ktlint.gradlePlugin)
+    compileOnly(libs.detekt.gradlePlugin)
 }
 
 gradlePlugin {
@@ -40,6 +42,10 @@ gradlePlugin {
         register("kmpCompose") {
             id = "maro.kmp.compose"
             implementationClass = "com.maro.buildlogic.KmpComposeConventionPlugin"
+        }
+        register("codeQuality") {
+            id = "maro.code.quality"
+            implementationClass = "com.maro.buildlogic.CodeQualityConventionPlugin"
         }
         register("kmpFeature") {
             id = "maro.kmp.feature"

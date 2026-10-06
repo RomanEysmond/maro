@@ -13,9 +13,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class NewChatViewModel(
-    private val repository: NewChatRepository,
-) : ViewModel() {
+class NewChatViewModel(private val repository: NewChatRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(NewChatState())
     val state = _state.asStateFlow()
@@ -28,9 +26,13 @@ class NewChatViewModel(
             is NewChatAction.OnQueryChange -> _state.update {
                 it.copy(query = sanitize(action.value), foundUser = null, error = null)
             }
+
             NewChatAction.OnSearchClick -> search()
+
             NewChatAction.OnUserClick -> startChat()
+
             NewChatAction.OnBackClick -> viewModelScope.launch { _events.send(NewChatEvent.NavigateBack) }
+
             NewChatAction.OnNewGroupClick -> viewModelScope.launch { _events.send(NewChatEvent.NavigateToNewGroup) }
         }
     }
@@ -59,14 +61,14 @@ class NewChatViewModel(
                     _state.update { it.copy(isStarting = false) }
                     _events.send(NewChatEvent.NavigateToChat(result.data))
                 }
+
                 is Result.Error -> _state.update { it.copy(isStarting = false, error = result.error.toUiText()) }
             }
         }
     }
 
     /** Lets only what a username may contain through (an "@" typed by habit is dropped). */
-    private fun sanitize(raw: String): String =
-        ProfileRules.normalizeUsername(raw)
-            .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
-            .take(ProfileRules.MAX_USERNAME_LENGTH)
+    private fun sanitize(raw: String): String = ProfileRules.normalizeUsername(raw)
+        .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
+        .take(ProfileRules.MAX_USERNAME_LENGTH)
 }

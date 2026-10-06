@@ -72,10 +72,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun EditProfileRoot(
-    viewModel: EditProfileViewModel,
-    onClose: () -> Unit,
-) {
+fun EditProfileRoot(viewModel: EditProfileViewModel, onClose: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     ObserveAsEvents(viewModel.events) { event ->
@@ -92,10 +89,7 @@ fun EditProfileRoot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditProfileScreen(
-    state: EditProfileState,
-    onAction: (EditProfileAction) -> Unit,
-) {
+fun EditProfileScreen(state: EditProfileState, onAction: (EditProfileAction) -> Unit) {
     val isSetup = state.mode == EditProfileMode.SETUP
 
     Scaffold(
@@ -160,7 +154,10 @@ fun EditProfileScreen(
                     val firstName = rememberTextFieldValue(state.firstName)
                     OutlinedTextField(
                         value = firstName.value,
-                        onValueChange = { firstName.value = it; onAction(EditProfileAction.OnFirstNameChange(it.text)) },
+                        onValueChange = {
+                            firstName.value = it
+                            onAction(EditProfileAction.OnFirstNameChange(it.text))
+                        },
                         label = { Text(stringResource(Res.string.edit_first_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -168,7 +165,10 @@ fun EditProfileScreen(
                     val lastName = rememberTextFieldValue(state.lastName)
                     OutlinedTextField(
                         value = lastName.value,
-                        onValueChange = { lastName.value = it; onAction(EditProfileAction.OnLastNameChange(it.text)) },
+                        onValueChange = {
+                            lastName.value = it
+                            onAction(EditProfileAction.OnLastNameChange(it.text))
+                        },
                         label = { Text(stringResource(Res.string.edit_last_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -178,7 +178,10 @@ fun EditProfileScreen(
                 val username = rememberTextFieldValue(state.username)
                 OutlinedTextField(
                     value = username.value,
-                    onValueChange = { username.value = it; onAction(EditProfileAction.OnUsernameChange(it.text)) },
+                    onValueChange = {
+                        username.value = it
+                        onAction(EditProfileAction.OnUsernameChange(it.text))
+                    },
                     label = { Text(stringResource(Res.string.edit_username)) },
                     prefix = { Text("@") },
                     modifier = Modifier.fillMaxWidth(),
@@ -198,7 +201,10 @@ fun EditProfileScreen(
                 val bio = rememberTextFieldValue(state.bio)
                 OutlinedTextField(
                     value = bio.value,
-                    onValueChange = { bio.value = it; onAction(EditProfileAction.OnBioChange(it.text)) },
+                    onValueChange = {
+                        bio.value = it
+                        onAction(EditProfileAction.OnBioChange(it.text))
+                    },
                     label = { Text(stringResource(Res.string.edit_bio)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
@@ -250,10 +256,7 @@ fun EditProfileScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BirthDateField(
-    birthDate: BirthDate?,
-    onBirthDateChange: (BirthDate?) -> Unit,
-) {
+private fun BirthDateField(birthDate: BirthDate?, onBirthDateChange: (BirthDate?) -> Unit) {
     var isPickerOpen by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -316,11 +319,10 @@ private class PastDates(private val nowMillis: Long) : SelectableDates {
     override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= nowMillis
 }
 
-private fun initialsOf(firstName: String, lastName: String): String =
-    listOf(firstName, lastName)
-        .mapNotNull { it.trim().firstOrNull()?.uppercaseChar() }
-        .joinToString("")
-        .ifEmpty { "?" }
+private fun initialsOf(firstName: String, lastName: String): String = listOf(firstName, lastName)
+    .mapNotNull { it.trim().firstOrNull()?.uppercaseChar() }
+    .joinToString("")
+    .ifEmpty { "?" }
 
 @Preview
 @Composable

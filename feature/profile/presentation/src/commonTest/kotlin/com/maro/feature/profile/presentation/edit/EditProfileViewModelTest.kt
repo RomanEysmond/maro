@@ -51,8 +51,10 @@ class EditProfileViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(mode: EditProfileMode = EditProfileMode.EDIT, savedState: SavedStateHandle = SavedStateHandle()) =
-        EditProfileViewModel(mode, repository, savedState)
+    private fun viewModel(
+        mode: EditProfileMode = EditProfileMode.EDIT,
+        savedState: SavedStateHandle = SavedStateHandle(),
+    ) = EditProfileViewModel(mode, repository, savedState)
 
     @Test
     fun `fields are filled from the current profile`() {

@@ -41,7 +41,7 @@ class MessageNotifications(private val context: Context) {
             .build()
         try {
             manager.notify(chatId, NOTIFICATION_ID, notification)
-        } catch (e: SecurityException) {
+        } catch (ignored: SecurityException) {
             // The permission was revoked between the check and the call.
         }
     }

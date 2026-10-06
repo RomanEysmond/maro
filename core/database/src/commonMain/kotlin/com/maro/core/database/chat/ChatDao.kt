@@ -98,4 +98,10 @@ data class ChatWithUnread(
     val draft: String? = null,
 )
 
-private fun maxOfNullable(a: Long?, b: Long?): Long? = if (a == null) b else if (b == null) a else maxOf(a, b)
+private fun maxOfNullable(a: Long?, b: Long?): Long? = if (a == null) {
+    b
+} else if (b == null) {
+    a
+} else {
+    maxOf(a, b)
+}

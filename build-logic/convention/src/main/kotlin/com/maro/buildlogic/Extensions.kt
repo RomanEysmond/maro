@@ -1,5 +1,6 @@
 package com.maro.buildlogic
 
+import com.android.build.api.dsl.Lint
 import org.gradle.api.Action
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
@@ -32,3 +33,13 @@ internal inline fun <reified T : Any> Project.configureExt(noinline block: T.() 
  */
 internal fun Project.androidNamespace(): String =
     "com.maro." + path.removePrefix(":").split(":").joinToString(".") { it.replace('-', '_') }
+
+/** Android lint for every module (`lintDebug`): errors fail the build, warnings are reported. */
+internal fun Lint.configureMaroLint() {
+    abortOnError = true
+    // Library, AGP and target SDK versions are raised deliberately, in a stage of their own: the toolchain has to
+    // stay compatible with the owner's Android Studio (see CLAUDE.md).
+    disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "OldTargetApi")
+    // Themed icons (Android 13+) need a monochrome version of the logo, which does not exist yet.
+    disable += "MonochromeLauncherIcon"
+}

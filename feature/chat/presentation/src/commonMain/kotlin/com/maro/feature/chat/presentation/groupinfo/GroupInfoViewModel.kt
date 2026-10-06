@@ -42,16 +42,28 @@ class GroupInfoViewModel(
         when (action) {
             GroupInfoAction.OnBackClick -> viewModelScope.launch { _events.send(GroupInfoEvent.NavigateBack) }
 
-            GroupInfoAction.OnRenameClick -> _state.update { it.copy(renameDraft = it.header?.title.orEmpty(), error = null) }
-            is GroupInfoAction.OnRenameChange -> _state.update { it.copy(renameDraft = action.value.take(GroupRules.MAX_TITLE_LENGTH)) }
+            GroupInfoAction.OnRenameClick -> _state.update {
+                it.copy(renameDraft = it.header?.title.orEmpty(), error = null)
+            }
+
+            is GroupInfoAction.OnRenameChange -> _state.update {
+                it.copy(renameDraft = action.value.take(GroupRules.MAX_TITLE_LENGTH))
+            }
+
             GroupInfoAction.OnRenameDismiss -> _state.update { it.copy(renameDraft = null) }
+
             GroupInfoAction.OnRenameConfirm -> rename()
 
-            is GroupInfoAction.OnAddQueryChange -> _state.update { it.copy(addQuery = sanitize(action.value), error = null) }
+            is GroupInfoAction.OnAddQueryChange -> _state.update {
+                it.copy(addQuery = sanitize(action.value), error = null)
+            }
+
             GroupInfoAction.OnAddClick -> addMember()
 
             GroupInfoAction.OnLeaveClick -> _state.update { it.copy(isLeaveConfirmVisible = true) }
+
             GroupInfoAction.OnLeaveDismiss -> _state.update { it.copy(isLeaveConfirmVisible = false) }
+
             GroupInfoAction.OnLeaveConfirm -> leave()
         }
     }
@@ -78,6 +90,7 @@ class GroupInfoViewModel(
                     _state.update { it.copy(isAdding = false, error = found.error.toUiText()) }
                     return@launch
                 }
+
                 is Result.Success -> found.data
             }
             when (val result = groups.addMember(chatId, user)) {
@@ -96,14 +109,14 @@ class GroupInfoViewModel(
                     _state.update { it.copy(isBusy = false) }
                     _events.send(GroupInfoEvent.LeftGroup)
                 }
+
                 is Result.Error -> _state.update { it.copy(isBusy = false, error = result.error.toUiText()) }
             }
         }
     }
 
     /** Lets only what a username may contain through (an "@" typed by habit is dropped). */
-    private fun sanitize(raw: String): String =
-        ProfileRules.normalizeUsername(raw)
-            .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
-            .take(ProfileRules.MAX_USERNAME_LENGTH)
+    private fun sanitize(raw: String): String = ProfileRules.normalizeUsername(raw)
+        .filter { it in 'a'..'z' || it in '0'..'9' || it == '_' }
+        .take(ProfileRules.MAX_USERNAME_LENGTH)
 }

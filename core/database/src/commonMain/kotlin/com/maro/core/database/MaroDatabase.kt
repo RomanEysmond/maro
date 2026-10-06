@@ -14,10 +14,15 @@ import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 
 @Database(
     entities = [
-        ChatEntity::class, MessageEntity::class, MessageSyncEntity::class, ChatMemberEntity::class, ChatDraftEntity::class,
+        ChatEntity::class,
+        MessageEntity::class,
+        MessageSyncEntity::class,
+        ChatMemberEntity::class,
+        ChatDraftEntity::class,
     ],
     version = 6,
     exportSchema = true,
@@ -44,7 +49,7 @@ expect object MaroDatabaseConstructor : RoomDatabaseConstructor<MaroDatabase> {
 internal const val DATABASE_FILE_NAME = "maro.db"
 
 /** Common builder configuration shared by every platform. */
-internal fun RoomDatabase.Builder<MaroDatabase>.withDefaults(): MaroDatabase =
-    setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.IO)
-        .build()
+internal fun RoomDatabase.Builder<MaroDatabase>.withDefaults(): MaroDatabase = setDriver(BundledSQLiteDriver())
+    // Dispatchers.IO in common code: on Kotlin/Native an extension, hence the `kotlinx.coroutines.IO` import.
+    .setQueryCoroutineContext(Dispatchers.IO)
+    .build()

@@ -214,7 +214,8 @@ class MessageSynchronizerTest {
         serverHas(1..2, chatId = "b")
         synchronizer.catchUp("b")
         remote.reads.clear()
-        chatDao.chats.value = listOf(chat("a", lastMessageSecond = 5), chat("b", lastMessageSecond = 2), chat("c", null))
+        chatDao.chats.value =
+            listOf(chat("a", lastMessageSecond = 5), chat("b", lastMessageSecond = 2), chat("c", null))
 
         keepInSyncInBackground()
 
@@ -223,7 +224,8 @@ class MessageSynchronizerTest {
 
         // A new message in "b" shows up in the chat list: only "b" is fetched.
         serverHas(3..3, chatId = "b")
-        chatDao.chats.value = listOf(chat("a", lastMessageSecond = 5), chat("b", lastMessageSecond = 3), chat("c", null))
+        chatDao.chats.value =
+            listOf(chat("a", lastMessageSecond = 5), chat("b", lastMessageSecond = 3), chat("c", null))
         runCurrent()
 
         assertThat(cachedIds("b")).isEqualTo(ids(1..3, "b"))
