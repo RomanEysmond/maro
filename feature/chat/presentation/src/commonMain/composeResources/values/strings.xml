@@ -42,4 +42,8 @@
     <string name="group_error_invalid_username">Username: 5 to 32 characters, Latin letters, digits and “_”, starting with a letter</string>
     <string name="group_error_not_found">User not found</string>
     <string name="chat_retry_action">Retry sending</string>
+    <string name="chat_attach">Attach a photo</string>
+    <string name="chat_photo">Photo</string>
+    <string name="chat_image_unreadable">Couldn’t open this picture</string>
+    <string name="chat_image_close">Close</string>
 </resources>

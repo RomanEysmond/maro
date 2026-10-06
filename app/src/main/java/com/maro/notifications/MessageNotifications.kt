@@ -49,8 +49,10 @@ class MessageNotifications(private val context: Context) {
     // A group's notification is the group's: its title, and the sender in front of the text.
     private fun IncomingMessage.title(): String? = (groupTitle ?: senderName).takeIf { it.isNotBlank() }
 
-    private fun IncomingMessage.body(): String =
-        if (groupTitle != null && senderName.isNotBlank()) "$senderName: $text" else text
+    private fun IncomingMessage.body(): String {
+        val content = if (isImage) context.getString(R.string.notification_photo) else text
+        return if (groupTitle != null && senderName.isNotBlank()) "$senderName: $content" else content
+    }
 
     /** Sign-out: nothing of the previous user's chats stays in the shade. */
     fun cancelAll() {

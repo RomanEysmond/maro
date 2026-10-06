@@ -33,6 +33,7 @@ enum class LastMessageReceipt {
 }
 
 data class LastMessage(
+    /** Empty for a photo without a caption. */
     val text: String,
     val senderId: String,
     /** Epoch millis. */
@@ -43,6 +44,8 @@ data class LastMessage(
      * `null` in a direct chat or for the user's own message.
      */
     val senderName: String? = null,
+    /** A photo: the list says "Photo" instead of the text. */
+    val isImage: Boolean = false,
 )
 
 data class Chat(

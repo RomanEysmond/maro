@@ -15,6 +15,13 @@ It is a separate Gradle build (it shares the app's version catalog), so Android 
   - `200 {"devices": n}` — pushed to `n` devices; `401` bad token; `400` bad body;
     `403` the caller is not a participant or not the author; `404` no such chat or message.
 
+- `POST /v1/media/upload` with the ID token and `{"chatId": "...", "messageId": "..."}`
+  - `200 {"key": "chats/{chatId}/{messageId}", "url": "..."}` — PUT the file to `url` within 15 minutes;
+    `403` not a participant; `404` no such chat; `503` media storage not configured.
+- `POST /v1/media/download` with the ID token and `{"chatId": "...", "key": "chats/{chatId}/..."}`
+  - `200 {"key": ..., "url": ...}` — GET the file from `url` within 15 minutes; `403` not a participant or a key of
+    another chat.
+
 ## Running locally
 
 1. Get a service account key: Firebase Console → Project settings → Service accounts → Generate new private key.
@@ -40,6 +47,24 @@ The service account key is never in the repository or in the Docker image; the s
   own service account (Google Cloud Run — no key file at all).
 
 The log says which one was used (`credentials: ...`), never the key itself.
+
+## Media storage (photos)
+
+Photos live in any S3-compatible object storage; the server only signs short-lived URLs, the files never pass
+through it. Without these variables the server still sends pushes and answers media requests with `503`.
+
+| Variable | Example |
+|---|---|
+| `S3_ENDPOINT` | `https://s3.eu-central-003.backblazeb2.com` |
+| `S3_REGION` | `eu-central-003` |
+| `S3_BUCKET` | `maro-media` |
+| `S3_ACCESS_KEY_ID` | the key's id |
+| `S3_SECRET_ACCESS_KEY` | the key itself (a secret: never in git, never in the image) |
+
+Backblaze B2 (the current choice, 10 GB free, no card): create a **private** bucket; *Application Keys → Add a New
+Application Key* with access to that bucket only (read and write); the endpoint and region are shown on the bucket's
+page (`s3.<region>.backblazeb2.com`). Moving to Cloudflare R2, a Russian provider or AWS later means changing these
+variables, nothing else.
 
 ## Deploy
 

@@ -10,6 +10,7 @@ import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
+import com.maro.feature.chat.data.media.PhotoUploader
 import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatSyncStatus
 import com.maro.feature.chat.domain.IncomingMessage
@@ -34,6 +35,8 @@ class DefaultMessageRepositoryTest {
     private val scheduler = FakeOutboxScheduler()
     private val user = FakeCurrentUserProvider("me")
     private val pushNotifier = FakePushNotifier()
+    private val media = FakeChatMedia()
+    private val imageFiles = FakeImageFiles()
     private var nextId = 0
     private var clock = 1_000L
 
@@ -45,6 +48,7 @@ class DefaultMessageRepositoryTest {
         currentUser = user,
         connectivity = FakeConnectivityObserver(),
         pushNotifier = pushNotifier,
+        photos = PhotoUploader(media, imageFiles, dao),
         // Runs the immediate send eagerly, on the test thread, so the outcome is there when sendMessage returns.
         scope = CoroutineScope(UnconfinedTestDispatcher()),
         newId = { "id-${nextId++}" },
@@ -351,5 +355,65 @@ class DefaultMessageRepositoryTest {
         )
 
         assertThat(repository.unsentCount()).isEqualTo(2)
+    }
+
+    @Test
+    fun `a photo is uploaded first, then sent as a message pointing at it`() = runTest {
+        val result = repository.sendImage("chat", "content://picked/1")
+
+        assertThat(result).isEqualTo(Result.Success(Unit))
+        assertThat(media.uploads).isEqualTo(listOf(Triple("chat", "id-0", FakeImageFiles.PREPARED_SIZE)))
+        val sent = remote.sent.single()
+        assertThat(sent.image).isEqualTo(RemoteImage("chats/chat/id-0", 1600, 1200))
+        assertThat(sent.text).isEqualTo("")
+        assertThat(statusOf("id-0")).isEqualTo(MessageStatus.SENT.name)
+        assertThat(dao.localMedia["id-0"]?.uploaded).isEqualTo(true)
+    }
+
+    @Test
+    fun `a failed upload sends nothing and a retry uploads again`() = runTest {
+        media.uploadResult = Result.Error(DataError.Network.NO_INTERNET)
+        repository.sendImage("chat", "content://picked/1")
+        assertThat(remote.sent).hasSize(0)
+        assertThat(statusOf("id-0")).isEqualTo(MessageStatus.SENDING.name)
+
+        media.uploadResult = Result.Success(Unit)
+        repository.flushOutbox(attempt = 1)
+
+        assertThat(media.uploads).hasSize(2)
+        assertThat(remote.sent).hasSize(1)
+    }
+
+    @Test
+    fun `an uploaded photo is not uploaded again when only the send has to be repeated`() = runTest {
+        remote.sendResult = Result.Error(DataError.Network.NO_INTERNET)
+        repository.sendImage("chat", "content://picked/1")
+        assertThat(media.uploads).hasSize(1)
+
+        remote.sendResult = Result.Success(Unit)
+        repository.flushOutbox(attempt = 1)
+
+        assertThat(media.uploads).hasSize(1)
+        assertThat(statusOf("id-0")).isEqualTo(MessageStatus.SENT.name)
+    }
+
+    @Test
+    fun `a picture that cannot be read is refused and nothing is queued`() = runTest {
+        assertThat(repository.sendImage("chat", "content://gone"))
+            .isEqualTo(Result.Error(SendError.UNREADABLE_IMAGE))
+        assertThat(dao.rows.value).hasSize(0)
+    }
+
+    @Test
+    fun `a photo whose local copy is gone fails for good`() = runTest {
+        remote.sendResult = Result.Error(DataError.Network.NO_INTERNET)
+        repository.sendImage("chat", "content://picked/1")
+        imageFiles.files.clear()
+        dao.localMedia.clear()
+
+        remote.sendResult = Result.Success(Unit)
+        repository.flushOutbox(attempt = 1)
+
+        assertThat(statusOf("id-0")).isEqualTo(MessageStatus.FAILED.name)
     }
 }

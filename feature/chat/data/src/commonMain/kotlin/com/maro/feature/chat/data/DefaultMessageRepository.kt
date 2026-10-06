@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.maro.core.database.chat.ChatDao
 import com.maro.core.database.chat.ChatDraftEntity
+import com.maro.core.database.message.LocalMediaEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.domain.auth.CurrentUserProvider
@@ -14,6 +15,7 @@ import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
+import com.maro.feature.chat.data.media.PhotoUploader
 import com.maro.feature.chat.data.push.MessagePushNotifier
 import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatSyncStatus
@@ -52,6 +54,7 @@ class DefaultMessageRepository(
     private val currentUser: CurrentUserProvider,
     connectivity: ConnectivityObserver,
     private val pushNotifier: MessagePushNotifier,
+    private val photos: PhotoUploader,
     // Same story as DefaultChatRepository: no lifecycle owner yet, so the process is the scope by default;
     // overridable so tests can drive the immediate send with a TestScope.
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -109,6 +112,29 @@ class DefaultMessageRepository(
         return Result.Success(Unit)
     }
 
+    override suspend fun sendImage(chatId: String, source: String): EmptyResult<SendError> {
+        val userId = currentUser.userId ?: return Result.Error(SendError.NOT_SIGNED_IN)
+        val id = newId()
+        val image = photos.prepare(source, id) ?: return Result.Error(SendError.UNREADABLE_IMAGE)
+        messageDao.insertWithLocalMedia(
+            MessageEntity(
+                id = id,
+                chatId = chatId,
+                senderId = userId,
+                text = "",
+                createdAt = now(),
+                status = MessageStatus.SENDING.name,
+                type = MessageEntity.TYPE_IMAGE,
+                mediaKey = mediaKeyOf(chatId, id),
+                mediaWidth = image.width,
+                mediaHeight = image.height,
+            ),
+            LocalMediaEntity(messageId = id, path = image.path),
+        )
+        dispatchOutbox()
+        return Result.Success(Unit)
+    }
+
     override suspend fun retryMessage(messageId: String) {
         val message = messageDao.getById(messageId) ?: return
         if (message.status != MessageStatus.FAILED.name) return
@@ -125,7 +151,8 @@ class DefaultMessageRepository(
     override suspend fun incomingMessage(chatId: String, messageId: String): IncomingMessage? {
         val message = messageDao.getById(messageId) ?: return null
         if (message.chatId != chatId || message.senderId == currentUser.userId) return null
-        if (message.type != MessageEntity.TYPE_TEXT) return null
+        // Group events are not notified; a photo is, as "Photo".
+        if (message.type == MessageEntity.TYPE_SYSTEM) return null
         val header = chatHeader(chatId).first()
         // In a group the notification is the group's, with the sender's name in front of the text.
         val sender = if (header?.isGroup == true) {
@@ -139,6 +166,7 @@ class DefaultMessageRepository(
             senderName = sender,
             text = message.text,
             groupTitle = header?.takeIf { it.isGroup }?.title,
+            isImage = message.type == MessageEntity.TYPE_IMAGE,
         )
     }
 
@@ -168,7 +196,11 @@ class DefaultMessageRepository(
 
     override suspend fun flushOutbox(attempt: Int): OutboxResult = outboxMutex.withLock {
         for (message in messageDao.getByStatus(MessageStatus.SENDING.name)) {
-            when (val result = remote.send(message.toRemote())) {
+            // A photo goes to the storage first: the message must never point at a file that is not there.
+            val result = photos.upload(message).let { upload ->
+                if (upload is Result.Error) upload else remote.send(message.toRemote())
+            }
+            when (result) {
                 is Result.Success -> {
                     messageDao.updateStatus(message.id, MessageStatus.SENT.name)
                     // Fire and forget: the message is delivered either way, the push only makes it arrive sooner.
@@ -217,3 +249,6 @@ class DefaultMessageRepository(
         const val MAX_ATTEMPTS = 4
     }
 }
+
+/** Where a message's photo lives in the storage; the server signs URLs for exactly this key (see server/). */
+internal fun mediaKeyOf(chatId: String, messageId: String): String = "chats/$chatId/$messageId"

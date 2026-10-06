@@ -101,6 +101,7 @@ internal class FirestoreChatRemoteDataSource(
             lastMessage = lastMessageText?.let { text ->
                 LastMessage(
                     text = text,
+                    isImage = getString(FIELD_LAST_MESSAGE_TYPE) == TYPE_IMAGE,
                     senderId = getString(FIELD_LAST_MESSAGE_SENDER_ID).orEmpty(),
                     sentAt = getTimestamp(FIELD_LAST_MESSAGE_AT)?.toDate()?.time ?: 0L,
                 )
@@ -145,6 +146,7 @@ internal class FirestoreChatRemoteDataSource(
         const val FIELD_PARTICIPANTS = "participants"
         const val FIELD_PARTICIPANT_INFO = "participantInfo"
         const val FIELD_LAST_MESSAGE_TEXT = "lastMessageText"
+        const val FIELD_LAST_MESSAGE_TYPE = "lastMessageType"
         const val FIELD_LAST_MESSAGE_SENDER_ID = "lastMessageSenderId"
         const val FIELD_LAST_MESSAGE_AT = "lastMessageAt"
         const val FIELD_UPDATED_AT = "updatedAt"

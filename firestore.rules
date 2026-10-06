@@ -99,8 +99,8 @@ service cloud.firestore {
       // without them.
       function hasValidShape(chat) {
         return chat.keys().hasOnly(
-            ['type', 'participants', 'participantInfo', 'lastMessageText', 'lastMessageSenderId', 'lastMessageAt',
-             'updatedAt', 'createdAt', 'lastRead', 'lastDelivered', 'title', 'createdBy']
+            ['type', 'participants', 'participantInfo', 'lastMessageText', 'lastMessageType', 'lastMessageSenderId',
+             'lastMessageAt', 'updatedAt', 'createdAt', 'lastRead', 'lastDelivered', 'title', 'createdBy']
           )
           && chat.keys().hasAll(['type', 'participants', 'participantInfo', 'updatedAt', 'createdAt'])
           && chat.participants is list
@@ -108,6 +108,7 @@ service cloud.firestore {
           && chat.updatedAt is timestamp
           && chat.createdAt is timestamp
           && (!('lastMessageText' in chat) || (chat.lastMessageText is string && chat.lastMessageText.size() <= 4000))
+          && (!('lastMessageType' in chat) || chat.lastMessageType in ['text', 'image'])
           && (!('lastMessageSenderId' in chat) || chat.lastMessageSenderId is string)
           && (!('lastMessageAt' in chat) || chat.lastMessageAt is timestamp)
           && (!('lastRead' in chat) || chat.lastRead is map)
@@ -141,7 +142,7 @@ service cloud.firestore {
       // Sending a message: moves lastMessage* and updatedAt, nothing else.
       function isSendUpdate() {
         return request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['lastMessageText', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt'])
+            .hasOnly(['lastMessageText', 'lastMessageType', 'lastMessageSenderId', 'lastMessageAt', 'updatedAt'])
           && request.resource.data.lastMessageSenderId == request.auth.uid
           && request.resource.data.lastMessageAt == request.time
           && request.resource.data.updatedAt == request.time;
@@ -228,6 +229,26 @@ service cloud.firestore {
             && request.resource.data.clientId == messageId;
         }
 
+        // A photo: the file is in the media storage under the message's own key (`chats/{chatId}/{messageId}`, the
+        // server signs URLs for exactly that), the message only names it. The text is an optional caption.
+        function isImageMessage() {
+          let message = request.resource.data;
+          return request.auth.uid in getAfter(chatPath(chatId)).data.participants
+            && message.keys().hasOnly(['senderId', 'type', 'text', 'media', 'createdAt', 'clientId'])
+            && message.keys().hasAll(['senderId', 'type', 'text', 'media', 'createdAt', 'clientId'])
+            && message.type == 'image'
+            && message.senderId == request.auth.uid
+            && message.text is string && message.text.size() <= 4000
+            && message.createdAt == request.time
+            && message.clientId == messageId
+            && message.media is map
+            && message.media.keys().hasOnly(['key', 'width', 'height'])
+            && message.media.keys().hasAll(['key', 'width', 'height'])
+            && message.media.key == 'chats/' + chatId + '/' + messageId
+            && message.media.width is int && message.media.width > 0 && message.media.width <= 10000
+            && message.media.height is int && message.media.height > 0 && message.media.height <= 10000;
+        }
+
         // A group event ("Anna added Peter"), written together with the change it tells about. Only ids and data:
         // the text is put together on each device. Someone leaving is no longer a participant after the write.
         function isSystemMessage() {
@@ -252,7 +273,7 @@ service cloud.firestore {
 
         allow read: if request.auth != null
           && request.auth.uid in get(chatPath(chatId)).data.participants;
-        allow create: if request.auth != null && (isTextMessage() || isSystemMessage());
+        allow create: if request.auth != null && (isTextMessage() || isImageMessage() || isSystemMessage());
         allow update, delete: if false;
       }
 

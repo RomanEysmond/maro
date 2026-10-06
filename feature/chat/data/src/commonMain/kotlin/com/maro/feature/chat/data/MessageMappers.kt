@@ -6,8 +6,10 @@ import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
 import com.maro.core.database.message.MessageWithReceipts
 import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatImage
 import com.maro.feature.chat.domain.ChatMember
 import com.maro.feature.chat.domain.Message
+import com.maro.feature.chat.domain.MessageImage
 import com.maro.feature.chat.domain.MessageStatus
 import com.maro.feature.chat.domain.SystemEvent
 import com.maro.feature.chat.domain.SystemEventKind
@@ -23,6 +25,7 @@ internal fun MessageEntity.toDomain(currentUserId: String?): Message = Message(
     status = runCatching { MessageStatus.valueOf(status) }.getOrDefault(MessageStatus.FAILED),
     isOutgoing = senderId == currentUserId,
     systemEvent = if (type == MessageEntity.TYPE_SYSTEM) toSystemEvent() else null,
+    image = toImage(localPath = null),
 )
 
 private fun MessageEntity.toSystemEvent(): SystemEvent? {
@@ -40,12 +43,23 @@ private fun MessageEntity.toSystemEvent(): SystemEvent? {
     )
 }
 
+/** A photo of the message (`null` for any other kind); [localPath] is the sender's own copy, if on this device. */
+internal fun MessageEntity.toImage(localPath: String?): MessageImage? {
+    if (type != MessageEntity.TYPE_IMAGE) return null
+    return MessageImage(
+        source = ChatImage(chatId = chatId, key = mediaKey ?: return null),
+        width = mediaWidth ?: return null,
+        height = mediaHeight ?: return null,
+        localPath = localPath,
+    )
+}
+
 /**
  * An outgoing message the server has is SENT until the other side's marks pass it: delivered first, then read
  * (a read message is delivered too). Marks and message times are both server timestamps.
  */
 internal fun MessageWithReceipts.toDomain(currentUserId: String?): Message {
-    val base = message.toDomain(currentUserId)
+    val base = message.toDomain(currentUserId).copy(image = message.toImage(localMediaPath))
     if (!base.isOutgoing || base.status != MessageStatus.SENT) return base
     val sentAt = message.createdAt
     val status = when {
@@ -63,10 +77,17 @@ internal fun RemoteMessage.toEntity(): MessageEntity = MessageEntity(
     text = text,
     createdAt = createdAtMicros / MICROS_PER_MILLI,
     status = MessageStatus.SENT.name,
-    type = if (systemEvent != null) MessageEntity.TYPE_SYSTEM else MessageEntity.TYPE_TEXT,
+    type = when {
+        systemEvent != null -> MessageEntity.TYPE_SYSTEM
+        image != null -> MessageEntity.TYPE_IMAGE
+        else -> MessageEntity.TYPE_TEXT
+    },
     eventKind = systemEvent?.kind,
     eventTargets = systemEvent?.targets?.joinToString(","),
     eventTitle = systemEvent?.title,
+    mediaKey = image?.key,
+    mediaWidth = image?.width,
+    mediaHeight = image?.height,
 )
 
 internal fun MessageEntity.toRemote(): RemoteMessage = RemoteMessage(
@@ -75,6 +96,7 @@ internal fun MessageEntity.toRemote(): RemoteMessage = RemoteMessage(
     senderId = senderId,
     text = text,
     createdAtMicros = createdAt * MICROS_PER_MILLI,
+    image = toImage(localPath = null)?.let { RemoteImage(it.source.key, it.width, it.height) },
 )
 
 internal val MessageSyncEntity.newest: MessageCursor?

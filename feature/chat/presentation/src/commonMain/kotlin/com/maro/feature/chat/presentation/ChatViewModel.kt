@@ -7,11 +7,14 @@ import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
 import com.maro.core.domain.util.Result
+import com.maro.core.presentation.util.UiText
 import com.maro.core.presentation.util.toUiText
 import com.maro.feature.chat.domain.ChatSyncStatus
 import com.maro.feature.chat.domain.MessageRepository
 import com.maro.feature.chat.domain.MessageRules
 import com.maro.feature.chat.domain.TypingRepository
+import com.maro.feature.chat.presentation.generated.resources.Res
+import com.maro.feature.chat.presentation.generated.resources.chat_image_unreadable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -102,6 +105,10 @@ class ChatViewModel(
 
             is ChatAction.OnRetryClick -> viewModelScope.launch { repository.retryMessage(action.messageId) }
 
+            is ChatAction.OnImagePicked -> sendImage(action.source)
+
+            is ChatAction.OnImageClick -> viewModelScope.launch { _events.send(ChatEvent.OpenImage(action.image)) }
+
             ChatAction.OnBackClick -> viewModelScope.launch { _events.send(ChatEvent.NavigateBack) }
 
             ChatAction.OnHeaderClick -> if (_state.value.header?.isGroup == true) {
@@ -123,6 +130,16 @@ class ChatViewModel(
             if (result is Result.Error) {
                 _state.update { it.copy(input = text) }
                 repository.saveDraft(chatId, text)
+            }
+        }
+    }
+
+    private fun sendImage(source: String) {
+        viewModelScope.launch {
+            // The photo is in the list (with the user's own copy) before it is uploaded; only an unreadable pick
+            // fails here.
+            if (repository.sendImage(chatId, source) is Result.Error) {
+                _events.send(ChatEvent.ShowError(UiText.Resource(Res.string.chat_image_unreadable)))
             }
         }
     }

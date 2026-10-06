@@ -21,7 +21,7 @@ interface ChatDao {
         SELECT chats.*, (
             SELECT COUNT(*) FROM messages
             WHERE messages.chatId = chats.id AND messages.senderId != :userId
-              AND messages.type = 'text'
+              AND messages.type != 'system'
               AND messages.createdAt > COALESCE(chats.myReadAt, 0)
         ) AS unreadCount, (
             SELECT firstName FROM chat_members

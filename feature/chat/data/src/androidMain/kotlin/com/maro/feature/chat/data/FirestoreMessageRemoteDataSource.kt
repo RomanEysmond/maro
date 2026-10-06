@@ -34,24 +34,29 @@ internal class FirestoreMessageRemoteDataSource(private val firestore: FirebaseF
                 if (transaction.get(messageRef).exists()) return@runTransaction true
 
                 val now = FieldValue.serverTimestamp()
+                val image = message.image
                 transaction.update(
                     chatRef,
                     mapOf(
                         "lastMessageText" to message.text,
+                        // Always written: after a photo, a text message must stop showing as "Photo".
+                        "lastMessageType" to if (image != null) TYPE_IMAGE else TYPE_TEXT,
                         "lastMessageSenderId" to message.senderId,
                         "lastMessageAt" to now,
                         "updatedAt" to now,
                     ),
                 )
-                transaction.set(
-                    messageRef,
-                    mapOf(
-                        "senderId" to message.senderId,
-                        "text" to message.text,
-                        "createdAt" to now,
-                        "clientId" to message.id,
-                    ),
+                val fields = mutableMapOf<String, Any>(
+                    "senderId" to message.senderId,
+                    "text" to message.text,
+                    "createdAt" to now,
+                    "clientId" to message.id,
                 )
+                if (image != null) {
+                    fields["type"] = TYPE_IMAGE
+                    fields["media"] = mapOf("key" to image.key, "width" to image.width, "height" to image.height)
+                }
+                transaction.set(messageRef, fields)
                 true
             }.await()
             Result.Success(Unit)
@@ -160,7 +165,8 @@ internal class FirestoreMessageRemoteDataSource(private val firestore: FirebaseF
         // Only real server timestamps: the messages are written in transactions, so there are no local
         // estimates to see here, and a guessed time must never become a cursor.
         val createdAt = getTimestamp(FIELD_CREATED_AT, ServerTimestampBehavior.NONE) ?: return null
-        val isSystem = getString("type") == "system"
+        val type = getString("type")
+        val isSystem = type == "system"
         return RemoteMessage(
             id = id,
             chatId = chatId,
@@ -168,6 +174,16 @@ internal class FirestoreMessageRemoteDataSource(private val firestore: FirebaseF
             text = if (isSystem) "" else getString("text") ?: return null,
             createdAtMicros = createdAt.seconds * MICROS_PER_SECOND + createdAt.nanoseconds / NANOS_PER_MICRO,
             systemEvent = if (isSystem) toSystemEvent() ?: return null else null,
+            image = if (type == TYPE_IMAGE) toImage() ?: return null else null,
+        )
+    }
+
+    private fun DocumentSnapshot.toImage(): RemoteImage? {
+        val media = get("media") as? Map<*, *> ?: return null
+        return RemoteImage(
+            key = media["key"] as? String ?: return null,
+            width = (media["width"] as? Number)?.toInt() ?: return null,
+            height = (media["height"] as? Number)?.toInt() ?: return null,
         )
     }
 
@@ -198,6 +214,8 @@ internal class FirestoreMessageRemoteDataSource(private val firestore: FirebaseF
     }
 
     private companion object {
+        const val TYPE_TEXT = "text"
+        const val TYPE_IMAGE = "image"
         const val CHATS = "chats"
         const val MESSAGES = "messages"
         const val FIELD_CREATED_AT = "createdAt"

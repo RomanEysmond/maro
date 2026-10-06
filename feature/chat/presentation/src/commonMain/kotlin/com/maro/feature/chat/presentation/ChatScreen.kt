@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +32,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,9 +71,11 @@ import com.maro.feature.chat.domain.ChatHeader
 import com.maro.feature.chat.domain.ChatMember
 import com.maro.feature.chat.domain.LoadMessagesException
 import com.maro.feature.chat.domain.Message
+import com.maro.feature.chat.domain.MessageImage
 import com.maro.feature.chat.domain.MessageStatus
 import com.maro.feature.chat.domain.SystemEventKind
 import com.maro.feature.chat.presentation.generated.resources.Res
+import com.maro.feature.chat.presentation.generated.resources.chat_attach
 import com.maro.feature.chat.presentation.generated.resources.chat_back
 import com.maro.feature.chat.presentation.generated.resources.chat_empty
 import com.maro.feature.chat.presentation.generated.resources.chat_event_added
@@ -92,16 +98,26 @@ import com.maro.feature.chat.presentation.generated.resources.chat_typing_named
 import com.maro.feature.chat.presentation.generated.resources.chat_typing_several
 import com.maro.feature.chat.presentation.generated.resources.chat_updating
 import com.maro.feature.chat.presentation.generated.resources.chat_waiting_for_network
+import com.maro.feature.chat.presentation.image.ChatPicture
+import com.maro.feature.chat.presentation.image.rememberImagePicker
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun ChatRoot(viewModel: ChatViewModel, onNavigateBack: () -> Unit, onOpenGroupInfo: (chatId: String) -> Unit) {
+fun ChatRoot(
+    viewModel: ChatViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenGroupInfo: (chatId: String) -> Unit,
+    onOpenImage: (MessageImage) -> Unit,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val items = viewModel.items.collectAsLazyPagingItems()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Messages count as read only while the chat is actually in front of the user.
     LifecycleResumeEffect(viewModel) {
@@ -113,6 +129,8 @@ fun ChatRoot(viewModel: ChatViewModel, onNavigateBack: () -> Unit, onOpenGroupIn
         when (event) {
             ChatEvent.NavigateBack -> onNavigateBack()
             is ChatEvent.NavigateToGroupInfo -> onOpenGroupInfo(event.chatId)
+            is ChatEvent.OpenImage -> onOpenImage(event.image)
+            is ChatEvent.ShowError -> scope.launch { snackbarHostState.showSnackbar(event.message.asStringAsync()) }
         }
     }
 
@@ -120,16 +138,24 @@ fun ChatRoot(viewModel: ChatViewModel, onNavigateBack: () -> Unit, onOpenGroupIn
         state = state,
         items = items,
         onAction = viewModel::onAction,
+        snackbarHostState = snackbarHostState,
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(state: ChatState, items: LazyPagingItems<ChatItem>, onAction: (ChatAction) -> Unit) {
+fun ChatScreen(
+    state: ChatState,
+    items: LazyPagingItems<ChatItem>,
+    onAction: (ChatAction) -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+) {
     val listState = rememberLazyListState()
     FollowNewestMessage(listState = listState, items = items)
+    val pickImage = rememberImagePicker { source -> onAction(ChatAction.OnImagePicked(source)) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -201,6 +227,7 @@ fun ChatScreen(state: ChatState, items: LazyPagingItems<ChatItem>, onAction: (Ch
                                         // messages (the list is newest first: the older neighbour is index + 1).
                                         senderName = senderNameFor(state, item.message, items.olderMessage(index)),
                                         onRetryClick = { onAction(ChatAction.OnRetryClick(item.message.id)) },
+                                        onImageClick = { image -> onAction(ChatAction.OnImageClick(image)) },
                                     )
                                 }
 
@@ -225,6 +252,7 @@ fun ChatScreen(state: ChatState, items: LazyPagingItems<ChatItem>, onAction: (Ch
                 canSend = state.canSend,
                 onValueChange = { onAction(ChatAction.OnInputChange(it)) },
                 onSendClick = { onAction(ChatAction.OnSendClick) },
+                onAttachClick = pickImage,
             )
         }
     }
@@ -368,7 +396,12 @@ private fun HistoryLoadState(loadState: LoadState, onRetryClick: () -> Unit) {
 }
 
 @Composable
-private fun MessageBubble(message: Message, senderName: String?, onRetryClick: () -> Unit) {
+private fun MessageBubble(
+    message: Message,
+    senderName: String?,
+    onRetryClick: () -> Unit,
+    onImageClick: (MessageImage) -> Unit,
+) {
     val isOutgoing = message.isOutgoing
     // One node for TalkBack: "Anna, hey, 09:16, Read". A failed message retries on a tap anywhere on the bubble,
     // not just on its 20 dp icon.
@@ -399,12 +432,23 @@ private fun MessageBubble(message: Message, senderName: String?, onRetryClick: (
                         maxLines = 1,
                     )
                 }
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f, fill = false),
+                message.image?.let { image ->
+                    ChatPicture(
+                        image = image,
+                        // A failed photo retries on a tap (the whole bubble does); otherwise the tap opens it.
+                        onClick = if (message.status == MessageStatus.FAILED) null else ({ onImageClick(image) }),
+                        modifier = Modifier.padding(bottom = 4.dp),
                     )
+                }
+                // Under a photo without a caption the time sits on the right, as it does after a text.
+                Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.align(Alignment.End)) {
+                    if (message.text.isNotEmpty()) {
+                        Text(
+                            text = message.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = messageTimeText(message.createdAt),
@@ -462,11 +506,24 @@ private fun StatusIcon(status: MessageStatus) {
 }
 
 @Composable
-private fun MessageInput(value: String, canSend: Boolean, onValueChange: (String) -> Unit, onSendClick: () -> Unit) {
+private fun MessageInput(
+    value: String,
+    canSend: Boolean,
+    onValueChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onAttachClick: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        IconButton(onClick = onAttachClick) {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = stringResource(Res.string.chat_attach),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
         val input = rememberTextFieldValue(value)
         OutlinedTextField(
             value = input.value,

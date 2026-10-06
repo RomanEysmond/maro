@@ -75,5 +75,15 @@ class FakeMessageRepository : MessageRepository {
 
     var unsent = 0
 
+    /** Sources of the pictures sent; an error for any in [unreadable]. */
+    val sentImages = mutableListOf<String>()
+    val unreadable = mutableSetOf<String>()
+
+    override suspend fun sendImage(chatId: String, source: String): EmptyResult<SendError> {
+        if (source in unreadable) return Result.Error(SendError.UNREADABLE_IMAGE)
+        sentImages += source
+        return Result.Success(Unit)
+    }
+
     override suspend fun unsentCount(): Int = unsent
 }
