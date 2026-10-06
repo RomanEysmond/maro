@@ -21,8 +21,10 @@ interface MessageDao {
      */
     @Query(
         """
-        SELECT messages.*, chats.peerReadAt AS peerReadAt, chats.peerDeliveredAt AS peerDeliveredAt
+        SELECT messages.*, chats.peerReadAt AS peerReadAt, chats.peerDeliveredAt AS peerDeliveredAt,
+            local_media.path AS localMediaPath
         FROM messages LEFT JOIN chats ON chats.id = messages.chatId
+            LEFT JOIN local_media ON local_media.messageId = messages.id
         WHERE messages.chatId = :chatId
         ORDER BY messages.createdAt DESC, messages.id DESC
         """,
@@ -60,6 +62,22 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE status = :status ORDER BY createdAt ASC, id ASC")
     suspend fun getByStatus(status: String): List<MessageEntity>
 
+    @Upsert
+    suspend fun upsertLocalMedia(media: LocalMediaEntity)
+
+    /** A photo the user sends: never a message without its picture, nor a picture without its message. */
+    @Transaction
+    suspend fun insertWithLocalMedia(message: MessageEntity, media: LocalMediaEntity) {
+        insert(message)
+        upsertLocalMedia(media)
+    }
+
+    @Query("SELECT * FROM local_media WHERE messageId = :messageId")
+    suspend fun getLocalMedia(messageId: String): LocalMediaEntity?
+
+    @Query("UPDATE local_media SET uploaded = 1 WHERE messageId = :messageId")
+    suspend fun markMediaUploaded(messageId: String)
+
     /** The user's messages that have not reached the server: still queued or given up on. */
     @Query("SELECT COUNT(*) FROM messages WHERE status IN ('SENDING', 'FAILED')")
     suspend fun countUnsent(): Int
@@ -87,4 +105,10 @@ interface MessageDao {
     }
 }
 
-data class MessageWithReceipts(@Embedded val message: MessageEntity, val peerReadAt: Long?, val peerDeliveredAt: Long?)
+data class MessageWithReceipts(
+    @Embedded val message: MessageEntity,
+    val peerReadAt: Long?,
+    val peerDeliveredAt: Long?,
+    /** The sender's own copy of a photo, if this device sent it. */
+    val localMediaPath: String? = null,
+)

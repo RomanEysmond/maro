@@ -47,6 +47,10 @@ paging = "3.5.1"
 ktor = "3.6.0"
 firebaseAdmin = "9.11.0"
 logback = "1.6.4"
+minio = "9.0.3"
+# Images in Compose Multiplatform. 3.3.0: the newest built for Kotlin <= 2.3 and Compose <= 1.9.3 (3.4+ needs
+# a newer Kotlin stdlib, 3.6 needs Compose 1.12).
+coil = "3.3.0"
 
 # Android
 activityCompose = "1.9.3"
@@ -142,6 +146,9 @@ ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-conte
 ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", version.ref = "ktor" }
 firebase-admin = { group = "com.google.firebase", name = "firebase-admin", version.ref = "firebaseAdmin" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+minio = { group = "io.minio", name = "minio", version.ref = "minio" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
 
 # --- Tests ---
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }

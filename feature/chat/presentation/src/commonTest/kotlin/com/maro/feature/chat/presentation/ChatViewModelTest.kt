@@ -4,14 +4,17 @@ import app.cash.turbine.test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.Result
 import com.maro.feature.chat.domain.ChatHeader
+import com.maro.feature.chat.domain.ChatImage
 import com.maro.feature.chat.domain.ChatSyncStatus
 import com.maro.feature.chat.domain.Message
+import com.maro.feature.chat.domain.MessageImage
 import com.maro.feature.chat.domain.MessageRules
 import com.maro.feature.chat.domain.MessageStatus
 import com.maro.feature.chat.domain.SendError
@@ -245,5 +248,30 @@ class ChatViewModelTest {
         viewModel.onAction(ChatAction.OnSendClick)
 
         assertThat(repository.drafts).isEqualTo(emptyMap())
+    }
+
+    @Test
+    fun `a picked picture is sent, an unreadable one is reported`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        repository.unreadable += "content://broken"
+
+        viewModel.onAction(ChatAction.OnImagePicked("content://picked"))
+        assertThat(repository.sentImages).isEqualTo(listOf("content://picked"))
+
+        viewModel.events.test {
+            viewModel.onAction(ChatAction.OnImagePicked("content://broken"))
+            assertThat(awaitItem()).isInstanceOf(ChatEvent.ShowError::class)
+        }
+    }
+
+    @Test
+    fun `tapping a photo opens it`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        val image = MessageImage(ChatImage("chat", "chats/chat/m1"), width = 800, height = 600)
+
+        viewModel.events.test {
+            viewModel.onAction(ChatAction.OnImageClick(image))
+            assertThat(awaitItem()).isEqualTo(ChatEvent.OpenImage(image))
+        }
     }
 }

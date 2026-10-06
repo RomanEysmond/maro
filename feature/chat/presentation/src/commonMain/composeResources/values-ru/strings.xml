@@ -44,4 +44,8 @@
     <string name="group_error_invalid_username">Имя пользователя: от 5 до 32 символов, латиница, цифры и «_», начинается с буквы</string>
     <string name="group_error_not_found">Пользователь не найден</string>
     <string name="chat_retry_action">Повторить отправку</string>
+    <string name="chat_attach">Прикрепить фото</string>
+    <string name="chat_photo">Фото</string>
+    <string name="chat_image_unreadable">Не удалось открыть это фото</string>
+    <string name="chat_image_close">Закрыть</string>
 </resources>

@@ -10,6 +10,9 @@ enum class SendError : Error {
     EMPTY,
     TOO_LONG,
     NOT_SIGNED_IN,
+
+    /** The picked file could not be read as a picture. */
+    UNREADABLE_IMAGE,
 }
 
 enum class OutboxResult {
@@ -43,6 +46,8 @@ data class IncomingMessage(
     val text: String,
     /** Set in a group: the notification is the group's ("Hiking: Anna: …"). */
     val groupTitle: String? = null,
+    /** A photo: [text] is empty and the notification says "Photo". */
+    val isImage: Boolean = false,
 )
 
 /** Paging needs a Throwable to report a failed page; this one carries the typed error for the UI. */
@@ -63,6 +68,12 @@ interface MessageRepository {
      * (right away, then through [OutboxScheduler] while the network or the server is not cooperating).
      */
     suspend fun sendMessage(chatId: String, text: String): EmptyResult<SendError>
+
+    /**
+     * Optimistic photo: [source] (what the picker returned) is shrunk and stored on the device, the message is in Room
+     * as SENDING with that local copy before this returns, and the upload and the send happen in the background.
+     */
+    suspend fun sendImage(chatId: String, source: String): EmptyResult<SendError>
 
     /** Puts a FAILED message back into the queue. */
     suspend fun retryMessage(messageId: String)

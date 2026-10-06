@@ -10,4 +10,5 @@
         <item quantity="many">У вас есть %1$d неотправленных сообщений, при выходе они пропадут</item>
         <item quantity="other">У вас есть %1$d неотправленного сообщения, при выходе они пропадут</item>
     </plurals>
+    <string name="notification_photo">📷 Фото</string>
 </resources>

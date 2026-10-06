@@ -10,6 +10,7 @@ import com.maro.core.database.chat.ChatDao
 import com.maro.core.database.chat.ChatDraftEntity
 import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.chat.ChatMemberEntity
+import com.maro.core.database.message.LocalMediaEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
@@ -23,8 +24,9 @@ import kotlinx.coroutines.IO
         MessageSyncEntity::class,
         ChatMemberEntity::class,
         ChatDraftEntity::class,
+        LocalMediaEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
@@ -32,6 +34,7 @@ import kotlinx.coroutines.IO
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
         AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 6, to = 7),
     ],
 )
 @ConstructedBy(MaroDatabaseConstructor::class)

@@ -69,6 +69,7 @@ import com.maro.feature.chatlist.presentation.generated.resources.chat_list_empt
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_menu
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_new_chat
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_no_messages_yet
+import com.maro.feature.chatlist.presentation.generated.resources.chat_list_photo
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_receipt_delivered
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_receipt_read
 import com.maro.feature.chatlist.presentation.generated.resources.chat_list_receipt_sent
@@ -247,7 +248,8 @@ private fun ChatListItem(chat: Chat, onClick: () -> Unit) {
                     }
                     Text(
                         text = chat.lastMessage?.let { message ->
-                            message.senderName?.let { "$it: ${message.text}" } ?: message.text
+                            val text = if (message.isImage) stringResource(Res.string.chat_list_photo) else message.text
+                            message.senderName?.let { "$it: $text" } ?: text
                         } ?: stringResource(Res.string.chat_list_no_messages_yet),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),

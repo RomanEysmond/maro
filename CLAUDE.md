@@ -324,12 +324,39 @@ server/                   мини-сервер пушей (Ktor + Firebase Admi
   общем коде без `import kotlinx.coroutines.IO` (на Kotlin/Native это расширение). Исправлено; `compileKotlinIosArm64`
   собирается на Windows для всех модулей (klib без линковки — запуск на iOS по-прежнему требует Mac).
 
+- **Этап 8а** (ветка `stage-8a-photos`, не закоммичен; сборка, 189 юнит-тестов, ktlint/detekt/lint, `compileKotlinIosArm64` и 19
+  тестов сервера зелёные; на двух эмуляторах проверены: миграция БД 6→7, Photo Picker без разрешений, сжатие (3000×2000 →
+  1600 px, JPEG ~74 КБ), мгновенное превью у отправителя, ожидание в очереди без сервера и отправка, когда сервер
+  появился, у получателя — «📷 Photo» в списке и в уведомлении, фото из B2 в переписке, полноэкранный просмотр у обоих).
+  **Хранилище:** Backblaze B2 через S3 API (10 ГБ бесплатно, без карты; регион EU Central); переезд на R2 / российского
+  провайдера / AWS — смена переменных сервера. Ключей хранилища у приложения нет. **Сервер:** `POST /v1/media/upload`
+  `{chatId, messageId}` и `/v1/media/download` `{chatId, key}` с ID-токеном → подписанная на 15 минут ссылка (MinIO SDK 9.0.3,
+  `S3MediaStore`), только участникам чата; ключ всегда `chats/{chatId}/{messageId}`, у download проверяется, что ключ из
+  этого чата. Настройки — `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`; без них
+  сервер работает без медиа (503). **Клиент:** `sendImage` — `ImageFiles` (Android: декод с `inSampleSize`, поворот по
+  EXIF, 1600 px, JPEG 85, в `files/media/`) → `MessageEntity` (`type = image`, `mediaKey/Width/Height`) + `LocalMediaEntity`
+  (таблица `local_media`: путь к своей копии и флаг `uploaded`, синхронизация её не трогает) в одной транзакции → outbox:
+  `PhotoUploader` сначала загружает файл (PUT по ссылке сервера, `KtorChatMediaRemoteDataSource`, один раз — повтор после
+  неудачной отправки не грузит заново), потом обычная транзакция Firestore. Сообщение: `type: 'image'`, `media = {key,
+  width, height}`, `text` — пустая подпись; у чата `lastMessageType` (`text`/`image`, пишется каждой отправкой).
+  Показ — Coil 3.3.0 (`coil-compose`, `coil-network-ktor3`; 3.4+ требует Kotlin stdlib новее нашего, 3.6 — Compose 1.12):
+  `ChatImage(chatId, key)` + `ChatImageFetcher` (сначала дисковый кэш по ключу, иначе ссылка у сервера и сетевой
+  загрузчик Coil с `diskCacheKey = key`), `ImageLoader` собирается в `MaroApplication` (`SingletonImageLoader.Factory`).
+  UI: кнопка вложения (`rememberImagePicker` — expect/actual, Android `PickVisualMedia`, iOS — заглушка), `ChatPicture`
+  (форма по пропорциям снимка, до 240 dp), `ImageViewerRoute` / `ImageViewerScreen` (чёрный фон, pinch-zoom).
+  Нечитаемая картинка — snackbar. Фото считаются в непрочитанных, системные сообщения — нет. Выход из аккаунта удаляет и
+  локальные фото (`SignOutCleaner` «media»). Правила: `isImageMessage` (ключ строго `chats/{chatId}/{messageId}`, размеры
+  1..10000), `lastMessageType` в форме чата и в `isSendUpdate` — опубликованы.
+  Не проверено на устройстве: `FAILED` для фото (нет локальной копии — покрыто тестом), поворот по EXIF на настоящей
+  фотографии с камеры, жест зума (только открытие просмотра).
+
 ## Тулчейн (выбран из-за требований свежих AndroidX-библиотек)
 AGP 8.13.2, Gradle 8.14.5, Kotlin 2.3.0, JDK 17, compileSdk 36 / targetSdk 35 / minSdk 26, Compose Multiplatform 1.9.3
 (Material 3 стабилен только в линии 1.9.x; в 1.10+ он alpha), material3 1.9.0, material-icons-extended 1.7.3,
 lifecycle 2.9.6, navigation 2.9.2, Koin 4.2.2, coroutines 1.10.2, serialization 1.9.0, Firebase BOM 34.19.0,
 Room 3.0.2 (`androidx.room3`, + `room3-paging`), KSP 2.3.10, `androidx.sqlite:sqlite-bundled` 2.7.1, WorkManager 2.11.2, ktlint 1.8.0 (плагин `org.jlleitschuh.gradle.ktlint` 14.2.0),
 detekt 1.23.8,
+Coil 3.3.0 (`coil-compose`, `coil-network-ktor3`), MinIO 9.0.3 (только сервер),
 Paging 3.5.1 (`paging-common`/`paging-compose` — KMP; `paging-compose` 3.5 требует Compose 1.9), Ktor 3.6.0 (клиент с
 движком Android; сервер — Netty), `firebase-admin` 9.11.0, logback 1.6.4 (только сервер), `kotlinx-datetime` 0.8.0.
 Convention plugins в `build-logic` — обычные Kotlin-классы (не `kotlin-dsl`): встроенный Kotlin Gradle 8.x не читает метаданные
@@ -362,7 +389,9 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
        формы переживают смерть процесса. `SecureStorage` отложен до E2E.
    7г. ✅ ktlint + detekt + Android lint во всех модулях, весь код приведён к ним.
    SQLCipher отложен (до E2E): Room 3 работает через KMP-драйверы, SQLCipher — через `SupportSQLiteOpenHelper`.
-8. Медиа (последним; хранилище выбираем к тому времени — Firebase Storage требует Blaze).
+8. Медиа: хранилище — S3-совместимое (сейчас Backblaze B2), ссылки подписывает наш сервер.
+   8а. ✅ Фото в чатах: выбор, сжатие, загрузка до отправки, превью, полноэкранный просмотр.
+   8б. Фото профиля и аватары.
 
 ### Этап 2: задел и открытые вопросы
 - `PhoneAuthenticator` (интерфейс в `feature:auth:domain`, реализация Firebase в `feature:auth:data/androidMain`; для
@@ -404,5 +433,10 @@ Kotlin 2.3. Версии SDK и библиотек — только в `gradle/l
 - Локализация: время всегда 24-часовое, дата рождения — `дд.мм.гггг` в обоих языках; пункт «Язык» в профиле только
   показывает текущий язык (выбор — в настройках Android); `SettingsScreen` и пункты «Чаты»/«Уведомления»/«Тёмная тема»
   в профиле — по-прежнему статичные заглушки этапа 1.
+- Медиа: сервер теперь нужен и для фото — release без хостинга не отправит и не покажет фото (загрузка падает в
+  `FAILED` после 4 попыток). Размер загружаемого файла сервер не ограничивает (подписанный PUT без лимита; клиент сам
+  сжимает до ~1600 px) — при хостинге стоит перейти на presigned POST с `content-length-range` или проверять размер.
+  Файл, загруженный для сообщения, которое потом не отправилось, остаётся в бакете (удаления медиа нет). `PushServerConfig`
+  теперь адрес не только пушей, но и медиа (название историческое). Фото на iOS не выбрать (заглушка picker).
 - Release-ключа пока нет: release подписывается debug-ключом. Создать ключ до первой раздачи сборки другим людям
   (`docs/RELEASE.md`) и добавить его SHA-1/SHA-256 в Firebase, иначе вход по SMS в release не заработает.

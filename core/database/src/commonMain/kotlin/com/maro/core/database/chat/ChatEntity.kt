@@ -36,4 +36,6 @@ data class ChatEntity(
     val title: String? = null,
     /** Groups only: the member who may rename the group and add people. */
     val createdBy: String? = null,
+    /** "text" | "image": a photo shows as "Photo" in the list. `null` for chats synced before photos existed. */
+    val lastMessageType: String? = null,
 )

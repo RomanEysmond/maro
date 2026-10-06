@@ -25,10 +25,14 @@ data class RemoteMessage(
     val createdAtMicros: Long,
     /** Set for a system message (group events): `kind` is "created" | "added" | "left" | "renamed". */
     val systemEvent: RemoteSystemEvent? = null,
+    /** Set for a photo: the file in the media storage and its size; [text] is empty then. */
+    val image: RemoteImage? = null,
 ) {
     val cursor: MessageCursor
         get() = MessageCursor(createdAtMicros, id)
 }
+
+data class RemoteImage(val key: String, val width: Int, val height: Int)
 
 data class RemoteSystemEvent(val kind: String, val targets: List<String> = emptyList(), val title: String? = null)
 

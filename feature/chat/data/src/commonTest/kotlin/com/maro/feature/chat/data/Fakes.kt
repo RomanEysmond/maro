@@ -7,6 +7,7 @@ import com.maro.core.database.chat.ChatDraftEntity
 import com.maro.core.database.chat.ChatEntity
 import com.maro.core.database.chat.ChatMemberEntity
 import com.maro.core.database.chat.ChatWithUnread
+import com.maro.core.database.message.LocalMediaEntity
 import com.maro.core.database.message.MessageDao
 import com.maro.core.database.message.MessageEntity
 import com.maro.core.database.message.MessageSyncEntity
@@ -16,7 +17,11 @@ import com.maro.core.domain.connectivity.ConnectivityObserver
 import com.maro.core.domain.util.DataError
 import com.maro.core.domain.util.EmptyResult
 import com.maro.core.domain.util.Result
+import com.maro.feature.chat.data.media.ChatMediaRemoteDataSource
+import com.maro.feature.chat.data.media.ImageFiles
+import com.maro.feature.chat.data.media.PreparedImage
 import com.maro.feature.chat.data.push.MessagePushNotifier
+import com.maro.feature.chat.domain.ChatImage
 import com.maro.feature.chat.domain.OutboxScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +29,19 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 class FakeMessageDao : MessageDao {
+    /** messageId -> the sender's own copy of a photo. */
+    val localMedia = mutableMapOf<String, LocalMediaEntity>()
+
+    override suspend fun upsertLocalMedia(media: LocalMediaEntity) {
+        localMedia[media.messageId] = media
+    }
+
+    override suspend fun getLocalMedia(messageId: String): LocalMediaEntity? = localMedia[messageId]
+
+    override suspend fun markMediaUploaded(messageId: String) {
+        localMedia[messageId]?.let { localMedia[messageId] = it.copy(uploaded = true) }
+    }
+
     val rows = MutableStateFlow<List<MessageEntity>>(emptyList())
     val syncStates = MutableStateFlow<Map<String, MessageSyncEntity>>(emptyMap())
 
@@ -234,6 +252,41 @@ class FakeOutboxScheduler : OutboxScheduler {
 
     override fun schedule() {
         scheduleCalls++
+    }
+}
+
+class FakeChatMedia : ChatMediaRemoteDataSource {
+    /** (chatId, messageId, size) of every upload. */
+    val uploads = mutableListOf<Triple<String, String, Int>>()
+    var uploadResult: EmptyResult<DataError.Network> = Result.Success(Unit)
+
+    override suspend fun upload(chatId: String, messageId: String, bytes: ByteArray): EmptyResult<DataError.Network> {
+        uploads += Triple(chatId, messageId, bytes.size)
+        return uploadResult
+    }
+
+    override suspend fun downloadUrl(image: ChatImage): Result<String, DataError.Network> =
+        Result.Success("https://storage/${image.key}")
+}
+
+/** Pictures "on the device": a source that is not in [readable] cannot be read. */
+class FakeImageFiles : ImageFiles {
+    val readable = mutableSetOf("content://picked/1")
+    val files = mutableMapOf<String, ByteArray>()
+
+    override suspend fun prepare(source: String, messageId: String): PreparedImage? {
+        if (source !in readable) return null
+        val path = "/files/media/$messageId.jpg"
+        files[path] = ByteArray(PREPARED_SIZE)
+        return PreparedImage(path, width = 1600, height = 1200)
+    }
+
+    override suspend fun read(path: String): ByteArray? = files[path]
+
+    override suspend fun deleteAll() = files.clear()
+
+    companion object {
+        const val PREPARED_SIZE = 42
     }
 }
 

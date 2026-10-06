@@ -14,7 +14,8 @@ complexity:
     ignoreAnnotated: ['Composable']
     # Constructors are filled by Koin; parameters with defaults are test seams (scope, clock, id generator).
     ignoreDefaultParameters: true
-    constructorThreshold: 8
+    # 9: the message repository is the outbox itself and ties Room, Firestore, WorkManager, pushes and photos.
+    constructorThreshold: 9
   LongMethod:
     # Screen layouts are long by nature; their parts are already split where it helps reading.
     ignoreAnnotated: ['Composable']

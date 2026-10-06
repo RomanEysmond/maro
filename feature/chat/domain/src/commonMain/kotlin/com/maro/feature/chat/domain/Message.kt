@@ -1,5 +1,8 @@
 package com.maro.feature.chat.domain
 
+import com.maro.core.domain.util.DataError
+import com.maro.core.domain.util.Result
+
 enum class MessageStatus {
     /** Written locally, not confirmed by the server yet (also while waiting for the network). */
     SENDING,
@@ -48,7 +51,32 @@ data class Message(
     val isOutgoing: Boolean,
     /** Set for a system message (group events), `null` for an ordinary one. */
     val systemEvent: SystemEvent? = null,
+    /** Set for a photo; [text] is empty then. */
+    val image: MessageImage? = null,
 )
+
+/** A photo in a conversation. */
+data class MessageImage(
+    /** Where the picture comes from: the storage, through the server (see [ChatImage]). */
+    val source: ChatImage,
+    /** Pixels: the bubble takes the picture's shape before it has loaded. */
+    val width: Int,
+    val height: Int,
+    /** The sender's own copy on this device: shown at once, even before (and without) any upload. */
+    val localPath: String? = null,
+)
+
+/**
+ * A chat's file in the media storage, as an image loader asks for it: the server gives a short-lived URL for [key]
+ * to the chat's participants only. [key] alone identifies the picture (the URL changes every time).
+ */
+data class ChatImage(val chatId: String, val key: String)
+
+/** Getting a [ChatImage] from the storage; the server checks that the user may see it. */
+interface ChatImageUrls {
+    /** A URL valid for a few minutes. */
+    suspend fun downloadUrl(image: ChatImage): Result<String, DataError.Network>
+}
 
 data class ChatMember(
     val id: String,

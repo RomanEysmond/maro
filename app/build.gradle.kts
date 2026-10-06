@@ -97,6 +97,9 @@ dependencies {
     implementation(project(":feature:chat:presentation"))
     implementation(project(":feature:profile:data"))
     implementation(project(":feature:profile:presentation"))
+    // The app-wide image loader: chat photos and network pictures over our Ktor client.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor3)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -16,6 +16,9 @@ interface SessionDao {
     @Query("DELETE FROM chat_members")
     suspend fun deleteMembers()
 
+    @Query("DELETE FROM local_media")
+    suspend fun deleteLocalMedia()
+
     @Query("DELETE FROM chat_drafts")
     suspend fun deleteDrafts()
 
@@ -25,6 +28,7 @@ interface SessionDao {
     @Transaction
     suspend fun clearAll() {
         deleteMessages()
+        deleteLocalMedia()
         deleteSyncStates()
         deleteMembers()
         deleteDrafts()

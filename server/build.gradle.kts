@@ -29,6 +29,8 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.firebase.admin)
+    // Presigned URLs for the S3-compatible media storage.
+    implementation(libs.minio)
     implementation(libs.logback.classic)
     implementation(libs.kotlinx.coroutines.core)
 

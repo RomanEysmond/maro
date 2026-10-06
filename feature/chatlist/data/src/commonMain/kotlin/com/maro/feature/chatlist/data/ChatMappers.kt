@@ -20,6 +20,7 @@ fun Chat.toEntity(): ChatEntity = ChatEntity(
     otherUserLastName = otherParticipant?.lastName.orEmpty(),
     otherUserUsername = otherParticipant?.username,
     lastMessageText = lastMessage?.text,
+    lastMessageType = lastMessage?.let { if (it.isImage) TYPE_IMAGE else TYPE_TEXT },
     lastMessageSenderId = lastMessage?.senderId,
     lastMessageAt = lastMessage?.sentAt,
     updatedAt = updatedAt,
@@ -81,7 +82,12 @@ fun ChatEntity.toDomain(): Chat {
         title = title,
         createdBy = createdBy,
         lastMessage = lastMessageText?.let { text ->
-            LastMessage(text = text, senderId = lastMessageSenderId.orEmpty(), sentAt = lastMessageAt ?: 0L)
+            LastMessage(
+                text = text,
+                senderId = lastMessageSenderId.orEmpty(),
+                sentAt = lastMessageAt ?: 0L,
+                isImage = lastMessageType == TYPE_IMAGE,
+            )
         },
         updatedAt = updatedAt,
         myReadAt = myReadAt,
@@ -89,3 +95,7 @@ fun ChatEntity.toDomain(): Chat {
         peerDeliveredAt = peerDeliveredAt,
     )
 }
+
+/** `lastMessageType` of a chat, as the server writes it. */
+internal const val TYPE_TEXT = "text"
+internal const val TYPE_IMAGE = "image"
